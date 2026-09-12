@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "name": "АО «СКППК»: сезонный поезд Ростов — Ейск",
+    "url": "https://skppk.ru/novosti/sezonnyy-poezd-rostov-eysk-vozvraschaetsya-na-marshrut-2",
+    "licenseUrl": "https://skppk.ru/avtorskie-prava",
+    "snapshotDate": "2026-09-11",
+    "validFrom": "2026-09-11",
+    "validUntil": "2026-09-27",
+    "coverageNote": "Реальный контрольный снимок: только Ростов — Ейск и обратно по выходным до 27.09.2026. Промежуточные остановки без опубликованных времён не включены. Это не покрытие России. Оперативные отмены не учитываются."
+  },
+  "stops": [
+    {
+      "id": "skppk:9612913",
+      "name": "Ростов-Главный (Пригородный)",
+      "regionCode": "61",
+      "latitude": 47.217314,
+      "longitude": 39.69478,
+      "timeZone": "Europe/Moscow",
+      "minTransferMinutes": null
+    },
+    {
+      "id": "skppk:9612952",
+      "name": "Ейск",
+      "regionCode": "23",
+      "latitude": 46.716409,
+      "longitude": 38.282883,
+      "timeZone": "Europe/Moscow",
+      "minTransferMinutes": null
+    }
+  ],
+  "trips": [
+    {
+      "id": "skppk:rostov-yeisk-2026:outbound",
+      "routeId": "skppk:rostov-yeisk:outbound",
+      "routeName": "Ростов-Главный (Пригородный) — Ейск",
+      "transport": "TRAIN",
+      "timeZone": "Europe/Moscow",
+      "daysOfWeek": [],
+      "seasonStart": "06-12",
+      "seasonEnd": "09-27",
+      "includedDates": [
+        "2026-09-12",
+        "2026-09-13",
+        "2026-09-19",
+        "2026-09-20",
+        "2026-09-26",
+        "2026-09-27"
+      ],
+      "calls": [
+        {
+          "stationId": "skppk:9612913",
+          "arrivalMinutes": null,
+          "departureMinutes": 405
+        },
+        {
+          "stationId": "skppk:9612952",
+          "arrivalMinutes": 598,
+          "departureMinutes": null
+        }
+      ]
+    },
+    {
+      "id": "skppk:rostov-yeisk-2026:return",
+      "routeId": "skppk:rostov-yeisk:return",
+      "routeName": "Ейск — Ростов-Главный (Пригородный)",
+      "transport": "TRAIN",
+      "timeZone": "Europe/Moscow",
+      "daysOfWeek": [],
+      "seasonStart": "06-12",
+      "seasonEnd": "09-27",
+      "includedDates": [
+        "2026-09-12",
+        "2026-09-13",
+        "2026-09-19",
+        "2026-09-20",
+        "2026-09-26",
+        "2026-09-27"
+      ],
+      "calls": [
+        {
+          "stationId": "skppk:9612952",
+          "arrivalMinutes": null,
+          "departureMinutes": 1070
+        },
+        {
+          "stationId": "skppk:9612913",
+          "arrivalMinutes": 1238,
+          "departureMinutes": null
+        }
+      ]
+    }
+  ]
+}

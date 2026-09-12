@@ -1,0 +1,10 @@
+{
+  "name": "Natural Earth 1:50m Admin 0 Countries",
+  "source": "https://github.com/nvkelso/natural-earth-vector/blob/master/geojson/ne_50m_admin_0_countries.geojson",
+  "license": "Public domain",
+  "licenseUrl": "https://www.naturalearthdata.com/about/terms-of-use/",
+  "sourceSha256": "3e458fc036ad0a66411f2c1e6cac49c5d7bfb81cb1123bc513b22511a2b7fdeb",
+  "outputSha256": "3e9c56dee9b4cba98ddb67889a53ba38cda4ca0b6d9a2f0009c1b2441ca21f6c",
+  "processing": "Exterior geographic rings, longitude unwrap, overview area filtering, 4 decimal places",
+  "limitation": "Overview geography only; no street routing or exact transport geometry"
+}

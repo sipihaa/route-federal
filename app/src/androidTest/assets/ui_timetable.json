@@ -1,0 +1,231 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "name": "Искусственный набор только для UI-теста",
+    "url": "https://example.invalid/test-fixture",
+    "snapshotDate": "2026-09-11",
+    "validFrom": "2026-01-01",
+    "validUntil": "2030-12-31",
+    "coverageNote": "Тестовые данные, не пассажирское расписание."
+  },
+  "stops": [
+    {
+      "id": "A",
+      "name": "A",
+      "regionCode": "test",
+      "latitude": null,
+      "longitude": null,
+      "timeZone": "Europe/Moscow",
+      "minTransferMinutes": 10
+    },
+    {
+      "id": "B",
+      "name": "B",
+      "regionCode": "test",
+      "latitude": null,
+      "longitude": null,
+      "timeZone": "Europe/Moscow",
+      "minTransferMinutes": 10
+    },
+    {
+      "id": "C",
+      "name": "C",
+      "regionCode": "test",
+      "latitude": null,
+      "longitude": null,
+      "timeZone": "Europe/Moscow",
+      "minTransferMinutes": 10
+    },
+    {
+      "id": "D",
+      "name": "D",
+      "regionCode": "test",
+      "latitude": null,
+      "longitude": null,
+      "timeZone": "Europe/Moscow",
+      "minTransferMinutes": 10
+    }
+  ],
+  "trips": [
+    {
+      "id": "slow",
+      "routeId": "slow",
+      "routeName": "slow",
+      "transport": "BUS",
+      "timeZone": "Europe/Moscow",
+      "daysOfWeek": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "seasonStart": "01-01",
+      "seasonEnd": "12-31",
+      "calls": [
+        {
+          "stationId": "A",
+          "arrivalMinutes": null,
+          "departureMinutes": 480
+        },
+        {
+          "stationId": "D",
+          "arrivalMinutes": 900,
+          "departureMinutes": null
+        }
+      ]
+    },
+    {
+      "id": "ab",
+      "routeId": "ab",
+      "routeName": "ab",
+      "transport": "BUS",
+      "timeZone": "Europe/Moscow",
+      "daysOfWeek": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "seasonStart": "01-01",
+      "seasonEnd": "12-31",
+      "calls": [
+        {
+          "stationId": "A",
+          "arrivalMinutes": null,
+          "departureMinutes": 600
+        },
+        {
+          "stationId": "B",
+          "arrivalMinutes": 660,
+          "departureMinutes": null
+        }
+      ]
+    },
+    {
+      "id": "bd",
+      "routeId": "bd",
+      "routeName": "bd",
+      "transport": "BUS",
+      "timeZone": "Europe/Moscow",
+      "daysOfWeek": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "seasonStart": "01-01",
+      "seasonEnd": "12-31",
+      "calls": [
+        {
+          "stationId": "B",
+          "arrivalMinutes": null,
+          "departureMinutes": 690
+        },
+        {
+          "stationId": "D",
+          "arrivalMinutes": 750,
+          "departureMinutes": null
+        }
+      ]
+    },
+    {
+      "id": "ac",
+      "routeId": "ac",
+      "routeName": "ac",
+      "transport": "BUS",
+      "timeZone": "Europe/Moscow",
+      "daysOfWeek": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "seasonStart": "01-01",
+      "seasonEnd": "12-31",
+      "calls": [
+        {
+          "stationId": "A",
+          "arrivalMinutes": null,
+          "departureMinutes": 720
+        },
+        {
+          "stationId": "C",
+          "arrivalMinutes": 780,
+          "departureMinutes": null
+        }
+      ]
+    },
+    {
+      "id": "cd",
+      "routeId": "cd",
+      "routeName": "cd",
+      "transport": "BUS",
+      "timeZone": "Europe/Moscow",
+      "daysOfWeek": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "seasonStart": "01-01",
+      "seasonEnd": "12-31",
+      "calls": [
+        {
+          "stationId": "C",
+          "arrivalMinutes": null,
+          "departureMinutes": 800
+        },
+        {
+          "stationId": "D",
+          "arrivalMinutes": 900,
+          "departureMinutes": null
+        }
+      ]
+    },
+    {
+      "id": "medium",
+      "routeId": "medium",
+      "routeName": "medium",
+      "transport": "BUS",
+      "timeZone": "Europe/Moscow",
+      "daysOfWeek": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "seasonStart": "01-01",
+      "seasonEnd": "12-31",
+      "calls": [
+        {
+          "stationId": "A",
+          "arrivalMinutes": null,
+          "departureMinutes": 900
+        },
+        {
+          "stationId": "D",
+          "arrivalMinutes": 1100,
+          "departureMinutes": null
+        }
+      ]
+    }
+  ]
+}
