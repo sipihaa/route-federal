@@ -16,7 +16,9 @@
       "latitude": null,
       "longitude": null,
       "timeZone": "Europe/Moscow",
-      "minTransferMinutes": 10
+      "minTransferMinutes": 10,
+      "cityId": "A",
+      "cityName": "A"
     },
     {
       "id": "B",
@@ -25,7 +27,9 @@
       "latitude": null,
       "longitude": null,
       "timeZone": "Europe/Moscow",
-      "minTransferMinutes": 10
+      "minTransferMinutes": 10,
+      "cityId": "B",
+      "cityName": "B"
     },
     {
       "id": "C",
@@ -34,7 +38,9 @@
       "latitude": null,
       "longitude": null,
       "timeZone": "Europe/Moscow",
-      "minTransferMinutes": 10
+      "minTransferMinutes": 10,
+      "cityId": "C",
+      "cityName": "C"
     },
     {
       "id": "D",
@@ -43,7 +49,9 @@
       "latitude": null,
       "longitude": null,
       "timeZone": "Europe/Moscow",
-      "minTransferMinutes": 10
+      "minTransferMinutes": 10,
+      "cityId": "D",
+      "cityName": "D"
     }
   ],
   "trips": [
@@ -83,15 +91,7 @@
       "routeName": "ab",
       "transport": "BUS",
       "timeZone": "Europe/Moscow",
-      "daysOfWeek": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7
-      ],
+      "daysOfWeek": [],
       "seasonStart": "01-01",
       "seasonEnd": "12-31",
       "calls": [
@@ -105,6 +105,9 @@
           "arrivalMinutes": 660,
           "departureMinutes": null
         }
+      ],
+      "includedDates": [
+        "2026-09-15"
       ]
     },
     {

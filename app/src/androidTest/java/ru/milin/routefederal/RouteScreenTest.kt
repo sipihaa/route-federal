@@ -64,9 +64,11 @@ class RouteScreenTest {
         screen.onNodeWithTag("main_content").performScrollToNode(hasTestTag("result_title"))
         screen.onNodeWithTag("result_title").performScrollTo().assertTextEquals("Найдено вариантов: 3")
         screen.onNodeWithTag("route_0").performScrollTo().assertTextContains("2 ч 30 мин · пересадок: 1", substring = true)
+        screen.onNodeWithTag("route_0").assertTextContains("Отправление: 15.09", substring = true)
         screen.onNodeWithTag("route_1").performScrollTo().assertTextContains("3 ч 0 мин · пересадок: 1", substring = true)
         screen.onNodeWithTag("route_2").performScrollTo().assertTextContains("3 ч 20 мин · пересадок: 0", substring = true)
-        screen.onNodeWithText("Ожидание пересадки: 30 мин").performScrollTo().assertIsDisplayed()
+        screen.onNodeWithTag("main_content").performScrollToNode(hasText("Ожидание пересадки: 30 мин"))
+        screen.onNodeWithText("Ожидание пересадки: 30 мин").assertIsDisplayed()
         screen.onNodeWithTag("main_content").performScrollToNode(hasTestTag("swap"))
         screen.onNodeWithTag("swap").performClick()
         screen.runOnIdle {
@@ -80,6 +82,6 @@ class RouteScreenTest {
 
     private fun chooseStation(button: String, stationId: String) {
         screen.onNodeWithTag(button).performScrollTo().performClick()
-        screen.onNodeWithTag("station_$stationId").performClick()
+        screen.onNodeWithTag("city_$stationId").performClick()
     }
 }

@@ -27,27 +27,28 @@ import java.time.format.DateTimeFormatter
 fun RouteApp(model: RouteViewModel = viewModel()) {
     val state by model.state.collectAsStateWithLifecycle()
     var showData by rememberSaveable { mutableStateOf(false) }
-    var stationPicker by remember { mutableStateOf<Boolean?>(null) }
-    var mapSelection by remember { mutableStateOf<Station?>(null) }
+    var cityPicker by remember { mutableStateOf<Boolean?>(null) }
+    var mapSelection by remember { mutableStateOf<City?>(null) }
     var detail by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
     val importFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) model.importData(uri)
     }
     val stations = state.data?.timetable?.stations.orEmpty()
-    val from = stations.find { it.id == state.fromId }
-    val to = stations.find { it.id == state.toId }
+    val cities = state.data?.timetable?.cities().orEmpty()
+    val from = cities.find { it.id == state.fromId }
+    val to = cities.find { it.id == state.toId }
     val journeys = state.result?.routes.orEmpty()
     LaunchedEffect(state.result) { detail = 0 }
     val shownJourney = journeys.getOrNull(detail)
-    val selectedIds = shownJourney?.legs?.flatMap { it.stopIds } ?: listOfNotNull(state.fromId, state.toId)
+    val selectedIds = shownJourney?.legs?.flatMap { it.stopIds } ?: (from?.stations.orEmpty() + to?.stations.orEmpty()).map { it.id }
 
     Scaffold { insets ->
         LazyColumn(Modifier.fillMaxSize().padding(insets).testTag("main_content"),
             contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
                 Text("Route Federal", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                Text("Поезда и автобусы · маршруты по расписанию", style = MaterialTheme.typography.bodyMedium)
+                Text("Поезда, электрички и автобусы", style = MaterialTheme.typography.bodyMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(!showData, onClick = { showData = false }, label = { Text("Маршрут") })
                     FilterChip(showData, onClick = { showData = true }, label = { Text("Данные") })
@@ -64,10 +65,11 @@ fun RouteApp(model: RouteViewModel = viewModel()) {
                         else {
                             Text("Источник: ${data.sourceName}")
                             Text("Снимок: ${data.timetable.snapshotDate}")
+                            data.timetable.expiresAt?.let { Text("Кэш действителен до ${formatTime(it, "Europe/Moscow")}") }
                             Text("Период данных: ${data.timetable.validFrom} — ${data.timetable.validUntil}")
                             Text("Станций: ${stations.size} · расписаний: ${data.timetable.trips.size}")
                             Text(data.timetable.coverageNote)
-                            Text(data.sourceUrl, style = MaterialTheme.typography.bodySmall)
+                            TextButton(onClick = { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(data.sourceUrl))) }) { Text("Открыть источник расписания") }
                             val noCoordinates = stations.count { it.latitude == null || it.longitude == null }
                             if (noCoordinates > 0) Text("Без координат: $noCoordinates. Эти пункты доступны в списке, но не показаны на карте.")
                         }
@@ -78,13 +80,18 @@ fun RouteApp(model: RouteViewModel = viewModel()) {
                 item {
                     SectionCard {
                         Text("Область поиска", style = MaterialTheme.typography.titleMedium)
-                        Text("Первое отправление — в выбранную дату. Ожидания на пересадках входят во время в пути; ожидание до первой посадки не входит.")
-                        Text("Ищем прибытие в течение выбранного периода:")
+                        Text("Первое отправление — в выбранную дату или позже, в пределах окна поиска. Ожидания на пересадках входят во время в пути; ожидание до первой посадки не входит.")
+                        Text("Ищем отправления в пределах периода данных:")
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            for (days in listOf(7, 14, 30)) FilterChip(state.horizonDays == days,
+                            for (days in listOf(1, 3, 8)) FilterChip(state.horizonDays == days,
                                 onClick = { model.chooseHorizon(days) }, label = { Text("$days дней") })
                         }
-                        Text("Пересадки разрешены только в одном узле с известным правилом времени пересадки. Переходы между вокзалами не строятся.", style = MaterialTheme.typography.bodySmall)
+                        Text("Запас пересадки при отсутствии правила станции:")
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            for (minutes in listOf(15, 30, 45, 60)) FilterChip(state.transferMinutes == minutes,
+                                onClick = { model.chooseTransferMinutes(minutes) }, label = { Text("$minutes мин") }, modifier = Modifier.testTag("transfer_$minutes"))
+                        }
+                        Text("Это параметр расчёта. Пересадки только на одной станции; переходы между вокзалами не строятся.", style = MaterialTheme.typography.bodySmall)
                     }
                 }
                 item {
@@ -92,25 +99,25 @@ fun RouteApp(model: RouteViewModel = viewModel()) {
                 }
             } else {
                 item {
-                    OfflineMap(state.map, stations, selectedIds, onStationClick = { mapSelection = it }, showRoute = shownJourney != null,
-                        modifier = Modifier.fillMaxWidth().height(260.dp))
+                    OfflineMap(state.map, state.regions, cities, selectedIds, onCityClick = { mapSelection = it }, showRoute = shownJourney != null,
+                        modifier = Modifier.fillMaxWidth().height(320.dp))
                 }
                 item {
                     SectionCard {
-                        OutlinedButton(onClick = { stationPicker = true }, enabled = stations.isNotEmpty(), modifier = Modifier.fillMaxWidth().testTag("choose_from")) {
-                            Text("Откуда: ${from?.name ?: "выберите станцию"}")
+                        OutlinedButton(onClick = { cityPicker = true }, enabled = stations.isNotEmpty(), modifier = Modifier.fillMaxWidth().testTag("choose_from")) {
+                            Text("Откуда: ${from?.name ?: "выберите город"}")
                         }
-                        OutlinedButton(onClick = { stationPicker = false }, enabled = stations.isNotEmpty(), modifier = Modifier.fillMaxWidth().testTag("choose_to")) {
-                            Text("Куда: ${to?.name ?: "выберите станцию"}")
+                        OutlinedButton(onClick = { cityPicker = false }, enabled = stations.isNotEmpty(), modifier = Modifier.fillMaxWidth().testTag("choose_to")) {
+                            Text("Куда: ${to?.name ?: "выберите город"}")
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            TextButton(onClick = model::swapStations, enabled = !state.loading, modifier = Modifier.testTag("swap")) { Text("Поменять местами") }
+                            TextButton(onClick = model::swapCities, enabled = !state.loading, modifier = Modifier.testTag("swap")) { Text("Поменять местами") }
                             TextButton(onClick = {
                                 DatePickerDialog(context, { _, year, month, day -> model.chooseDate(LocalDate.of(year, month + 1, day)) },
                                     state.date.year, state.date.monthValue - 1, state.date.dayOfMonth).show()
                             }, modifier = Modifier.testTag("choose_date")) { Text(state.date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))) }
                         }
-                        Text("Ожидание до первой посадки не учитывается", style = MaterialTheme.typography.bodySmall)
+                        Text("Отправления с ${state.date.format(DateTimeFormatter.ofPattern("dd.MM"))} по ${minOf(state.date.plusDays(state.horizonDays - 1L), state.data?.timetable?.validUntil ?: state.date.plusDays(state.horizonDays - 1L)).format(DateTimeFormatter.ofPattern("dd.MM"))}. Ожидание до первой посадки не учитывается", style = MaterialTheme.typography.bodySmall)
                         if (state.searching) {
                             LinearProgressIndicator(Modifier.fillMaxWidth())
                             OutlinedButton(onClick = model::cancelSearch, modifier = Modifier.fillMaxWidth()) { Text("Отменить поиск") }
@@ -124,13 +131,16 @@ fun RouteApp(model: RouteViewModel = viewModel()) {
                     Text("Карта доступна офлайн. Для расчёта требуется реальное расписание: откройте раздел «Данные».")
                 }
                 state.data?.let { data -> item {
+                    TextButton(onClick = { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(data.sourceUrl))) }) {
+                        Text(if (data.sourceName == "Яндекс Расписания") "Данные предоставлены сервисом Яндекс.Расписания" else "Источник: ${data.sourceName}")
+                    }
                     Text("Снимок ${data.timetable.snapshotDate}. ${data.timetable.coverageNote}", style = MaterialTheme.typography.bodySmall)
                 } }
                 state.result?.let { result ->
                     item {
                         Text(if (result.status == SearchStatus.COMPLETED_IN_WINDOW) "Найдено вариантов: ${journeys.size}" else "Поиск не завершён",
                             style = MaterialTheme.typography.titleLarge, modifier = Modifier.testTag("result_title"))
-                        Text("По загруженному расписанию, в пределах ${state.horizonDays} дней", style = MaterialTheme.typography.bodySmall)
+                        Text("По загруженному расписанию; окно отправлений — ${state.horizonDays} дней", style = MaterialTheme.typography.bodySmall)
                         if (result.errors.isNotEmpty()) Text(result.errors.joinToString("\n"), color = MaterialTheme.colorScheme.error)
                         if (journeys.isEmpty() && result.status == SearchStatus.COMPLETED_IN_WINDOW) Text("Варианты в этой базе и периоде не найдены. Это не означает отсутствия сообщения.")
                     }
@@ -140,27 +150,28 @@ fun RouteApp(model: RouteViewModel = viewModel()) {
                             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(if (index == 0) "Лучший из найденных" else "Альтернатива $index", fontWeight = FontWeight.Bold)
                                 Text("${durationText(journey.durationMinutes)} · пересадок: ${journey.transferCount}")
+                                Text("Отправление: ${formatTime(journey.departure, from?.stations?.firstOrNull()?.timeZone)}")
                                 Text(journey.legs.joinToString(" → ") { it.routeName }, style = MaterialTheme.typography.bodySmall)
                                 if (detail == index) Text("Выбран", color = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
-                    shownJourney?.let { journey -> item {
-                        SectionCard {
-                            Text("Поездка по участкам", style = MaterialTheme.typography.titleMedium)
-                            for ((index, leg) in journey.legs.withIndex()) {
+                    shownJourney?.let { journey ->
+                        item { Text("Поездка по участкам", style = MaterialTheme.typography.titleMedium) }
+                        items(journey.legs.indices.toList()) { index ->
+                            val leg = journey.legs[index]
+                            SectionCard {
                                 if (index > 0) Text("Ожидание пересадки: ${durationText(journey.waitingMinutesBefore(index))}", fontWeight = FontWeight.Bold)
                                 val departureStation = stations.find { it.id == leg.fromStationId }
                                 val arrivalStation = stations.find { it.id == leg.toStationId }
-                                Text("${if (leg.transport == TransportType.BUS) "Автобус" else "Поезд"}: ${leg.routeName}")
+                                Text("${leg.transport.title}: ${leg.routeName}")
                                 Text("${departureStation?.name ?: leg.fromStationId}\n${formatTime(leg.departure, departureStation?.timeZone)}")
                                 Text("↓")
                                 Text("${arrivalStation?.name ?: leg.toStationId}\n${formatTime(leg.arrival, arrivalStation?.timeZone)}")
-                                HorizontalDivider()
                             }
-                            Text("Время указано в часовом поясе соответствующей станции.", style = MaterialTheme.typography.bodySmall)
                         }
-                    } }
+                        item { Text("Время указано в часовом поясе соответствующей станции.", style = MaterialTheme.typography.bodySmall) }
+                    }
                     item {
                         for (note in result.limitations) Text(note, style = MaterialTheme.typography.bodySmall)
                     }
@@ -168,14 +179,14 @@ fun RouteApp(model: RouteViewModel = viewModel()) {
             }
         }
     }
-    stationPicker?.let { origin ->
-        StationPicker(stations, onSelect = { model.chooseStation(it.id, origin); stationPicker = null }, onDismiss = { stationPicker = null })
+    cityPicker?.let { origin ->
+        CityPicker(cities, onSelect = { model.chooseCity(it.id, origin); cityPicker = null }, onDismiss = { cityPicker = null })
     }
-    mapSelection?.let { station ->
-        AlertDialog(onDismissRequest = { mapSelection = null }, title = { Text(station.name) },
-            text = { Text("Выбрать эту станцию для маршрута") },
-            confirmButton = { TextButton(onClick = { model.chooseStation(station.id, true); mapSelection = null }) { Text("Отсюда") } },
-            dismissButton = { TextButton(onClick = { model.chooseStation(station.id, false); mapSelection = null }) { Text("Сюда") } })
+    mapSelection?.let { city ->
+        AlertDialog(onDismissRequest = { mapSelection = null }, title = { Text(city.name) },
+            text = { Text("В поиск войдут все загруженные станции города") },
+            confirmButton = { TextButton(onClick = { model.chooseCity(city.id, true); mapSelection = null }) { Text("Отсюда") } },
+            dismissButton = { TextButton(onClick = { model.chooseCity(city.id, false); mapSelection = null }) { Text("Сюда") } })
     }
 }
 
@@ -185,18 +196,18 @@ private fun SectionCard(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-private fun StationPicker(stations: List<Station>, onSelect: (Station) -> Unit, onDismiss: () -> Unit) {
+private fun CityPicker(cities: List<City>, onSelect: (City) -> Unit, onDismiss: () -> Unit) {
     var query by remember { mutableStateOf("") }
-    val matches = remember(stations, query) { stations.filter { it.name.contains(query.trim(), ignoreCase = true) || it.region.contains(query.trim(), ignoreCase = true) }.take(100) }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Выбор станции") },
+    val matches = remember(cities, query) { cities.filter { it.name.contains(query.trim(), ignoreCase = true) }.take(100) }
+    AlertDialog(onDismissRequest = onDismiss, title = { Text("Выбор города") },
         text = {
             Column {
-                OutlinedTextField(query, onValueChange = { query = it }, label = { Text("Название или регион") }, singleLine = true, modifier = Modifier.testTag("station_query"))
+                OutlinedTextField(query, onValueChange = { query = it }, label = { Text("Название города") }, singleLine = true, modifier = Modifier.testTag("city_query"))
                 LazyColumn(Modifier.heightIn(max = 350.dp)) {
-                    items(matches, key = { it.id }) { station ->
-                        Column(Modifier.fillMaxWidth().clickable { onSelect(station) }.padding(vertical = 12.dp).testTag("station_${station.id}")) {
-                            Text(station.name)
-                            Text("Регион ${station.region} · ${station.id}", style = MaterialTheme.typography.bodySmall)
+                    items(matches, key = { it.id }) { city ->
+                        Column(Modifier.fillMaxWidth().clickable { onSelect(city) }.padding(vertical = 12.dp).testTag("city_${city.id}")) {
+                            Text(city.name)
+                            Text("Станций в поиске: ${city.stations.size}", style = MaterialTheme.typography.bodySmall)
                         }
                     }
                     if (matches.isEmpty()) item { Text("Ничего не найдено в загруженных данных", Modifier.padding(12.dp)) }

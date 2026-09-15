@@ -30,8 +30,19 @@ data class Journey(val legs: List<JourneyLeg>) {
     val durationMinutes: Long get() = Duration.between(departure, arrival).toMinutes()
     val transferCount: Int get() = legs.size - 1
 
-    fun signature(): List<LegSignature> = legs.map {
-        LegSignature(it.transport, it.routeId, it.fromStationId, it.toStationId)
+    fun signature(): List<LegSignature> {
+        val result = mutableListOf<LegSignature>()
+        for (leg in legs) {
+            val previous = result.lastOrNull()
+            if (previous != null && previous.transport == leg.transport && previous.routeId == leg.routeId &&
+                previous.toStationId == leg.fromStationId) {
+                // Waiting for another departure of the same line does not create a new route alternative.
+                result[result.lastIndex] = previous.copy(toStationId = leg.toStationId)
+            } else {
+                result.add(LegSignature(leg.transport, leg.routeId, leg.fromStationId, leg.toStationId))
+            }
+        }
+        return result
     }
 
     fun waitingMinutesBefore(legIndex: Int): Long {
@@ -41,7 +52,7 @@ data class Journey(val legs: List<JourneyLeg>) {
     }
 }
 
-enum class SearchStatus { COMPLETED_IN_WINDOW, CANCELLED, RESOURCE_LIMIT, INVALID_DATA, DATE_OUT_OF_RANGE }
+enum class SearchStatus { COMPLETED_IN_WINDOW, CANCELLED, RESOURCE_LIMIT, INVALID_DATA, DATE_OUT_OF_RANGE, EXPIRED_DATA }
 
 data class RouteSearchResult(
     val routes: List<Journey>,

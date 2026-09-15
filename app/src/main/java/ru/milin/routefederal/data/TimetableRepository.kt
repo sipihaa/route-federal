@@ -7,8 +7,11 @@ import ru.milin.routefederal.routing.*
 import java.io.File
 import java.io.InputStream
 import java.time.LocalDate
+import java.time.Instant
+import java.time.OffsetDateTime
 
 data class DataInfo(val timetable: Timetable, val sourceName: String, val sourceUrl: String)
+data class MapRegion(val name: String, val center: MapPoint, val rings: List<List<MapPoint>>)
 data class MapPoint(val longitude: Float, val latitude: Float)
 
 class TimetableRepository(context: Context) {
@@ -16,7 +19,14 @@ class TimetableRepository(context: Context) {
     private val importedFile = File(appContext.filesDir, "timetable.json")
 
     fun load(): DataInfo? {
-        if (importedFile.exists()) return parse(importedFile.readText())
+        if (importedFile.exists()) {
+            val data = parse(importedFile.readText())
+            if (data.timetable.expiresAt?.let { !Instant.now().isBefore(it) } == true) {
+                importedFile.delete()
+                error("Срок кэша истёк. Импортируйте обновлённое расписание.")
+            }
+            return data
+        }
         if (appContext.assets.list("")?.contains("timetable.json") != true) return null
         return appContext.assets.open("timetable.json").bufferedReader().use { parse(it.readText()) }
     }
@@ -25,6 +35,9 @@ class TimetableRepository(context: Context) {
         val bytes = input.readBytesLimited(20 * 1024 * 1024)
         val text = bytes.toString(Charsets.UTF_8)
         val data = parse(text)
+        require(data.timetable.expiresAt?.let { Instant.now().isBefore(it) } != false) {
+            "Срок кэша этого файла истёк. Прежняя база сохранена."
+        }
         val errors = TimetableValidator.validate(data.timetable)
         require(errors.isEmpty()) { errors.take(3).joinToString("\n") }
         require(data.timetable.trips.isNotEmpty()) { "В файле нет пригодных рейсов." }
@@ -41,9 +54,22 @@ class TimetableRepository(context: Context) {
         return data
     }
 
-    fun loadMap(): List<List<MapPoint>> {
-        val text = appContext.assets.open("map_land.json").bufferedReader().use { it.readText() }
-        val polygons = JSONArray(text)
+    fun loadMap(): List<List<MapPoint>> = readRings(JSONArray(
+        appContext.assets.open("map_land.json").bufferedReader().use { it.readText() }))
+
+    fun loadRegions(): List<MapRegion> {
+        val array = JSONArray(appContext.assets.open("map_regions.json").bufferedReader().use { it.readText() })
+        val result = mutableListOf<MapRegion>()
+        for (i in 0 until array.length()) {
+            val region = array.getJSONObject(i)
+            result.add(MapRegion(region.getString("name"),
+                MapPoint(region.getDouble("longitude").toFloat(), region.getDouble("latitude").toFloat()),
+                readRings(region.getJSONArray("rings"))))
+        }
+        return result
+    }
+
+    private fun readRings(polygons: JSONArray): List<List<MapPoint>> {
         val result = mutableListOf<List<MapPoint>>()
         for (i in 0 until polygons.length()) {
             val points = polygons.getJSONArray(i)
@@ -68,10 +94,16 @@ class TimetableRepository(context: Context) {
         val stopsJson = root.getJSONArray("stops")
         for (i in 0 until stopsJson.length()) {
             val s = stopsJson.getJSONObject(i)
+            require(!s.isNull("cityId") && !s.isNull("cityName") &&
+                s.getString("cityId").isNotBlank() && s.getString("cityName").isNotBlank()) {
+                "В файле нет сведений о городах. Подготовьте новую версию расписания."
+            }
             stations.add(Station(
                 s.getString("id"), s.getString("name"), s.getString("regionCode"),
                 s.nullableDouble("latitude"), s.nullableDouble("longitude"),
-                s.getString("timeZone"), s.nullableInt("minTransferMinutes")
+                s.getString("timeZone"), s.nullableInt("minTransferMinutes"),
+                if (s.isNull("cityId")) null else s.getString("cityId"),
+                if (s.isNull("cityName")) null else s.getString("cityName")
             ))
         }
         val trips = mutableListOf<ScheduledTrip>()
@@ -95,7 +127,8 @@ class TimetableRepository(context: Context) {
             ))
         }
         val timetable = Timetable(stations, trips, LocalDate.parse(source.getString("snapshotDate")), source.getString("coverageNote"),
-            LocalDate.parse(source.getString("validFrom")), LocalDate.parse(source.getString("validUntil")))
+            LocalDate.parse(source.getString("validFrom")), LocalDate.parse(source.getString("validUntil")),
+            if (source.isNull("expiresAt")) null else OffsetDateTime.parse(source.getString("expiresAt")).toInstant())
         val errors = TimetableValidator.validate(timetable)
         require(errors.isEmpty()) { errors.take(3).joinToString("\n") }
         return DataInfo(timetable, source.getString("name"), source.getString("url"))

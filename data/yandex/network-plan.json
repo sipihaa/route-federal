@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "source": "API Яндекс Расписаний",
+  "dateFrom": "2026-09-21",
+  "dateUntilInclusive": "2026-09-28",
+  "days": 8,
+  "regions": [
+    "Москва",
+    "Московская область",
+    "Владимирская область",
+    "Нижегородская область"
+  ],
+  "coverage": "Только перечисленные пары пунктов и виды транспорта. Для железной дороги выбраны конкретные станции, для автобусов — пары городов с фактическими остановками из ответа. Это не полные сети регионов или все исходящие рейсы станций.",
+  "arrivalPolicy": "Сохранять полное прибытие рейса, даже если оно позже 28 сентября. Наличие дальнейших отправлений после 28 сентября не подразумевается.",
+  "connections": [
+    {
+      "id": "kursky_vladimir_train",
+      "from": "s2000001",
+      "to": "s2060340",
+      "fromName": "Москва (Курский вокзал)",
+      "toName": "Владимир",
+      "transport": "train",
+      "bothDirections": true
+    },
+    {
+      "id": "vostochny_vladimir_train",
+      "from": "s9879173",
+      "to": "s2060340",
+      "fromName": "Москва (Восточный вокзал)",
+      "toName": "Владимир",
+      "transport": "train",
+      "bothDirections": true
+    },
+    {
+      "id": "vostochny_nizhny_train",
+      "from": "s9879173",
+      "to": "s9612089",
+      "fromName": "Москва (Восточный вокзал)",
+      "toName": "Нижний Новгород (Московский вокзал)",
+      "transport": "train",
+      "bothDirections": true
+    },
+    {
+      "id": "vladimir_nizhny_train",
+      "from": "s2060340",
+      "to": "s9612089",
+      "fromName": "Владимир",
+      "toName": "Нижний Новгород (Московский вокзал)",
+      "transport": "train",
+      "bothDirections": true
+    },
+    {
+      "id": "kursky_orekhovo_suburban",
+      "from": "s2000001",
+      "to": "s9601539",
+      "fromName": "Москва (Курский вокзал)",
+      "toName": "Орехово-Зуево",
+      "transport": "suburban",
+      "bothDirections": true
+    },
+    {
+      "id": "orekhovo_petushki_suburban",
+      "from": "s9601539",
+      "to": "s9612144",
+      "fromName": "Орехово-Зуево",
+      "toName": "Петушки",
+      "transport": "suburban",
+      "bothDirections": true
+    },
+    {
+      "id": "petushki_vladimir_suburban",
+      "from": "s9612144",
+      "to": "s2060340",
+      "fromName": "Петушки",
+      "toName": "Владимир",
+      "transport": "suburban",
+      "bothDirections": true
+    },
+    {
+      "id": "kursky_vladimir_suburban",
+      "from": "s2000001",
+      "to": "s2060340",
+      "fromName": "Москва (Курский вокзал)",
+      "toName": "Владимир",
+      "transport": "suburban",
+      "bothDirections": true
+    },
+    {
+      "id": "moscow_vladimir_bus",
+      "from": "c213",
+      "to": "c192",
+      "fromName": "Москва (автобусные станции из ответа API)",
+      "toName": "Владимир (автобусные станции из ответа API)",
+      "transport": "bus",
+      "bothDirections": true
+    },
+    {
+      "id": "vladimir_nizhny_bus",
+      "from": "c192",
+      "to": "c23243",
+      "fromName": "Владимир (автобусные станции из ответа API)",
+      "toName": "Нижний Новгород (автобусные станции из ответа API)",
+      "transport": "bus",
+      "bothDirections": true
+    },
+    {
+      "id": "moscow_nizhny_bus",
+      "from": "c213",
+      "to": "c23243",
+      "fromName": "Москва (автобусные станции из ответа API)",
+      "toName": "Нижний Новгород (автобусные станции из ответа API)",
+      "transport": "bus",
+      "bothDirections": true
+    },
+    {
+      "id": "vladimir_suzdal_bus",
+      "from": "c192",
+      "to": "c10671",
+      "fromName": "Владимир (автобусные станции из ответа API)",
+      "toName": "Суздаль (автобусные станции из ответа API)",
+      "transport": "bus",
+      "bothDirections": true
+    }
+  ],
+  "budget": {
+    "dailyProviderLimit": 500,
+    "projectDataLimitIncludingProbe": 250,
+    "probeLimit": 20,
+    "baseSearchRequests": 216,
+    "referenceRequestsReserve": 2,
+    "extraPagesAndErrorsReserve": 12,
+    "maximumNewRequestsPerFullDownload": 230,
+    "note": "216 первых страниц включают 24 запроса предыдущей даты для ночной границы; полезный период остаётся 21–28 сентября. До 2 справочных + прежняя проба 20 + резерв 12 = 250. Другие локальные обращения также входят в предел."
+  },
+  "completeDownloadPerformed": true,
+  "selectionBasis": "Сеть выбрана по географии; 15 сентября выполнены все 216 запросов с учётом предыдущего дня для ночной границы. Полнота фактических перевозок не гарантируется поставщиком.",
+  "busStationPolicy": "Не ограничивать городской ответ заранее выбранным автовокзалом. Сохранять отдельные фактические коды остановок; список busStationCandidates служит ориентиром, не фильтром и не подтверждением рейсов.",
+  "ticketAvailability": "Не проверяется. Учитываются опубликованные рейсы и даты движения, а не наличие мест в продаже.",
+  "busStationCandidates": [
+    {
+      "id": "s9878376",
+      "name": "Москва, Центральный автовокзал"
+    },
+    {
+      "id": "s9858171",
+      "name": "Москва, автостанция Новогиреево"
+    },
+    {
+      "id": "s9623080",
+      "name": "Владимир, автовокзал"
+    },
+    {
+      "id": "s9623084",
+      "name": "Суздаль, автовокзал"
+    },
+    {
+      "id": "s9623398",
+      "name": "Нижний Новгород, автовокзал «Щербинки»"
+    },
+    {
+      "id": "s9655203",
+      "name": "Нижний Новгород, Канавинский автовокзал"
+    }
+  ],
+  "boundaryLookbackDays": 1
+}

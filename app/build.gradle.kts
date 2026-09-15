@@ -17,6 +17,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true }
+    // Temporary real data is used only by local instrumented tests, never by the main APK.
+    sourceSets.getByName("androidTest").assets.srcDir(rootProject.file(".yandex-cache/android-test-assets"))
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

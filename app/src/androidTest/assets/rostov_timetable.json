@@ -17,7 +17,9 @@
       "latitude": 47.217314,
       "longitude": 39.69478,
       "timeZone": "Europe/Moscow",
-      "minTransferMinutes": null
+      "minTransferMinutes": null,
+      "cityId": "rostov",
+      "cityName": "Ростов-на-Дону"
     },
     {
       "id": "skppk:9612952",
@@ -26,7 +28,9 @@
       "latitude": 46.716409,
       "longitude": 38.282883,
       "timeZone": "Europe/Moscow",
-      "minTransferMinutes": null
+      "minTransferMinutes": null,
+      "cityId": "eysk",
+      "cityName": "Ейск"
     }
   ],
   "trips": [

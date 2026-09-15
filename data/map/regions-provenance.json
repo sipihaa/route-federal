@@ -1,0 +1,12 @@
+{
+  "name": "Natural Earth 10m Admin 1 States and Provinces",
+  "source": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson",
+  "license": "Public domain",
+  "licenseUrl": "https://www.naturalearthdata.com/about/terms-of-use/",
+  "sourceSha256": "22d0e3ad85eb3e27f17cabf8ba2d50e554fbc27a87796ff891d958185da62fb5",
+  "outputSha256": "231e191e3022307a827ecb7971230120a8b6c4eed59d64a18da71b83f740e2ca",
+  "regions": 86,
+  "processing": "RUS features as supplied, all rings, longitude unwrap, RDP tolerance 0.006 degrees, 4 decimals",
+  "downloadDate": "2026-09-16",
+  "limitations": "Source administrative boundaries, not street or transport geometry"
+}

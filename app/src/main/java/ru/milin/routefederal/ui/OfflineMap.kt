@@ -1,5 +1,8 @@
 package ru.milin.routefederal.ui
 
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Typeface
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -9,10 +12,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -21,100 +23,143 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import ru.milin.routefederal.data.MapPoint
-import ru.milin.routefederal.routing.Station
+import ru.milin.routefederal.data.MapRegion
+import ru.milin.routefederal.routing.City
 import kotlin.math.min
+
+private fun projected(point: MapPoint): Offset {
+    val longitude = if (point.longitude < -80) point.longitude + 360 else point.longitude
+    return Offset(longitude * 0.56f, -point.latitude)
+}
+
+private fun mapPath(rings: List<List<MapPoint>>) = Path().apply {
+    fillType = PathFillType.EvenOdd
+    for (ring in rings) {
+        for ((index, point) in ring.withIndex()) {
+            val position = projected(point)
+            if (index == 0) moveTo(position.x, position.y) else lineTo(position.x, position.y)
+        }
+        close()
+    }
+}
 
 @Composable
 fun OfflineMap(
     polygons: List<List<MapPoint>>,
-    stations: List<Station>,
+    regions: List<MapRegion>,
+    cities: List<City>,
     selectedIds: List<String>,
-    onStationClick: (Station) -> Unit,
+    onCityClick: (City) -> Unit,
     modifier: Modifier = Modifier,
     showRoute: Boolean = false
 ) {
-    var zoom by remember { mutableFloatStateOf(1f) }
-    var pan by remember { mutableStateOf(Offset.Zero) }
+    var center by remember { mutableStateOf(Offset(56f, -62f)) }
+    var scale by remember { mutableFloatStateOf(5f) }
     var area by remember { mutableStateOf(IntSize.Zero) }
-    val mapStations = remember(stations) { stations.filter { it.latitude != null && it.longitude != null } }
-    val paths = remember(polygons) {
-        polygons.map { ring ->
-            Path().apply {
-                for ((index, point) in ring.withIndex()) {
-                    val x = (point.longitude - 100f) * 0.5f
-                    val y = 62f - point.latitude
-                    if (index == 0) moveTo(x, y) else lineTo(x, y)
-                }
-                close()
-            }
+    val landPaths = remember(polygons) { polygons.map { mapPath(listOf(it)) } }
+    val regionPaths = remember(regions) { regions.map { mapPath(it.rings) } }
+    val cityPoints = remember(cities) {
+        cities.mapNotNull { city ->
+            val stops = city.stations.filter { it.latitude != null && it.longitude != null }
+            if (stops.isEmpty()) null else city to projected(MapPoint(
+                stops.map { it.longitude!! }.average().toFloat(), stops.map { it.latitude!! }.average().toFloat()))
         }
     }
-    fun position(station: Station): Offset {
-        var lon = station.longitude!!.toFloat()
-        if (lon < -80) lon += 360
-        val scale = min(area.width / 90f, area.height / 52f) * zoom
-        return Offset(area.width / 2f + (lon - 100f) * 0.5f * scale, area.height / 2f + (62f - station.latitude!!.toFloat()) * scale) + pan
+    val stations = remember(cities) { cities.flatMap { it.stations }.associateBy { it.id } }
+    fun position(point: Offset) = Offset(area.width / 2f, area.height / 2f) + (point - center) * scale
+    fun fitCities() {
+        if (cityPoints.isEmpty() || area.width == 0) return
+        val points = cityPoints.map { it.second }
+        val left = points.minOf { it.x }; val right = points.maxOf { it.x }
+        val top = points.minOf { it.y }; val bottom = points.maxOf { it.y }
+        center = Offset((left + right) / 2, (top + bottom) / 2)
+        scale = min(area.width * 0.65f / (right - left).coerceAtLeast(2f),
+            area.height * 0.58f / (bottom - top).coerceAtLeast(2f)).coerceIn(3f, 800f)
     }
-    Box(modifier.clipToBounds().background(Color(0xFFE4EDF2))) {
-        Canvas(
-            Modifier.fillMaxSize().onSizeChanged { area = it }
-                .semantics { contentDescription = "Обзорная офлайн-карта. Станции также доступны в поиске по названию." }
-                .pointerInput(mapStations, zoom, pan) {
-                    detectTapGestures { tap ->
-                        val closest = mapStations.minByOrNull { (position(it) - tap).getDistance() }
-                        if (closest != null && (position(closest) - tap).getDistance() < 28.dp.toPx()) onStationClick(closest)
-                    }
+    LaunchedEffect(cityPoints, area) { fitCities() }
+    Box(modifier.clipToBounds().background(Color(0xFFDDEDF4))) {
+        Canvas(Modifier.fillMaxSize().onSizeChanged { area = it }
+            .semantics { contentDescription = "Офлайн-карта России с границами и названиями регионов. Выбор города нажатием на маркер." }
+            .pointerInput(cityPoints, center, scale) {
+                detectTapGestures { tap ->
+                    val closest = cityPoints.minByOrNull { (position(it.second) - tap).getDistance() }
+                    if (closest != null && (position(closest.second) - tap).getDistance() < 28.dp.toPx()) onCityClick(closest.first)
                 }
-                .pointerInput(Unit) {
-                    detectTransformGestures { _, movement, factor, _ ->
-                        zoom = (zoom * factor).coerceIn(1f, 64f)
-                        pan += movement
-                    }
+            }
+            .pointerInput(Unit) {
+                detectTransformGestures { centroid, movement, factor, _ ->
+                    val anchor = center + (centroid - Offset(area.width / 2f, area.height / 2f)) / scale
+                    scale = (scale * factor).coerceIn(3f, 800f)
+                    center = anchor - (centroid - Offset(area.width / 2f, area.height / 2f) + movement) / scale
                 }
-        ) {
-            val scale = min(size.width / 90f, size.height / 52f) * zoom
+            }) {
             drawContext.canvas.save()
-            drawContext.canvas.translate(size.width / 2f + pan.x, size.height / 2f + pan.y)
+            drawContext.canvas.translate(size.width / 2f - center.x * scale, size.height / 2f - center.y * scale)
             drawContext.canvas.scale(scale, scale)
-            for (path in paths) {
-                drawPath(path, Color(0xFFF8F7F1))
-                drawPath(path, Color(0xFFB9C6C8), style = Stroke(0.6f / scale))
+            for (path in landPaths) {
+                drawPath(path, Color(0xFFF1F1EB))
+                drawPath(path, Color(0xFF9DAEAD), style = Stroke(0.8.dp.toPx() / scale))
+            }
+            val colors = listOf(Color(0xFFE8EFE2), Color(0xFFF1EADD), Color(0xFFE6ECEF), Color(0xFFEDE7ED))
+            for ((index, path) in regionPaths.withIndex()) {
+                drawPath(path, colors[index % colors.size])
+                drawPath(path, Color(0xFF99A693), style = Stroke(1.dp.toPx() / scale))
             }
             drawContext.canvas.restore()
-            val selected = selectedIds.mapNotNull { id -> mapStations.find { it.id == id } }
-            if (showRoute) for (index in 0 until selected.lastIndex) {
-                drawLine(Color(0xFF006A62), position(selected[index]), position(selected[index + 1]), strokeWidth = 3.dp.toPx())
+            val routePoints = selectedIds.mapNotNull { stations[it] }.mapNotNull {
+                if (it.longitude == null || it.latitude == null) null else position(projected(MapPoint(it.longitude.toFloat(), it.latitude.toFloat())))
             }
-            for (station in mapStations) {
-                val center = position(station)
-                if (center.x !in 0f..size.width || center.y !in 0f..size.height) continue
-                val isSelected = station.id in selectedIds
-                drawCircle(Color.White, if (isSelected) 8.dp.toPx() else 5.dp.toPx(), center)
-                drawCircle(if (isSelected) Color(0xFF006A62) else Color(0xFF5D7580), if (isSelected) 5.dp.toPx() else 3.dp.toPx(), center)
+            if (showRoute) for (i in 0 until routePoints.lastIndex) {
+                drawLine(Color(0xFF00796B), routePoints[i], routePoints[i + 1], strokeWidth = 3.dp.toPx())
             }
+            val occupied = mutableListOf(RectF(0f, 0f, 145.dp.toPx(), 48.dp.toPx()),
+                RectF(size.width - 60.dp.toPx(), 0f, size.width, 110.dp.toPx()))
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12.dp.toPx() }
+            fun label(text: String, point: Offset, city: Boolean) {
+                paint.typeface = if (city) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+                val width = paint.measureText(text)
+                val height = 16.dp.toPx()
+                val offsets = if (city) listOf(Offset(10.dp.toPx(), -8.dp.toPx()), Offset(10.dp.toPx(), 22.dp.toPx()),
+                    Offset(-width - 10.dp.toPx(), -8.dp.toPx()), Offset(-width - 10.dp.toPx(), 22.dp.toPx()),
+                    Offset(-width / 2, -30.dp.toPx()), Offset(-width / 2, 40.dp.toPx())) else listOf(Offset(-width / 2, 0f), Offset(-width / 2, 40.dp.toPx()), Offset(-width / 2, -35.dp.toPx()))
+                for (offset in offsets) {
+                    val x = point.x + offset.x; val y = point.y + offset.y
+                    val box = RectF(x - 3, y - height, x + width + 3, y + 5)
+                    if (box.left < 4 || box.right > size.width - 4 || box.top < 4 || box.bottom > size.height - 26.dp.toPx()) continue
+                    if (occupied.any { RectF.intersects(it, box) }) continue
+                    occupied.add(box)
+                    if (city) drawLine(Color(0xFF718991), point,
+                        Offset(point.x.coerceIn(box.left, box.right), point.y.coerceIn(box.top, box.bottom)),
+                        strokeWidth = 0.8.dp.toPx())
+                    paint.style = Paint.Style.STROKE; paint.strokeWidth = 3.dp.toPx(); paint.color = android.graphics.Color.WHITE
+                    drawContext.canvas.nativeCanvas.drawText(text, x, y, paint)
+                    paint.style = Paint.Style.FILL; paint.color = if (city) 0xFF203D49.toInt() else 0xFF657561.toInt()
+                    drawContext.canvas.nativeCanvas.drawText(text, x, y, paint)
+                    break
+                }
+            }
+            for ((city, point) in cityPoints) {
+                val pixel = position(point)
+                if (pixel.x !in 0f..size.width || pixel.y !in 0f..size.height) continue
+                val selected = city.stations.any { it.id in selectedIds }
+                drawCircle(Color.White, 7.dp.toPx(), pixel)
+                drawCircle(if (selected) Color(0xFF00796B) else Color(0xFF3C6170), 4.dp.toPx(), pixel)
+                label(city.name, pixel, true)
+            }
+            if (scale > 12f) for (region in regions) {
+                label(region.name.replace("область", "обл.").replace("Республика", "Респ."), position(projected(region.center)), false)
+            }
+        }
+        Row(Modifier.align(Alignment.TopStart).background(Color.White.copy(alpha = 0.9f))) {
+            TextButton(onClick = { center = Offset(56f, -62f); scale = min(area.width / 96f, area.height / 45f).coerceAtLeast(3f) }) { Text("Россия") }
+            TextButton(onClick = { fitCities() }) { Text("Города") }
         }
         Column(Modifier.align(Alignment.TopEnd).padding(8.dp)) {
-            FilledTonalButton(onClick = { zoom = (zoom * 1.7f).coerceAtMost(64f) }, contentPadding = PaddingValues(0.dp), modifier = Modifier.size(44.dp)) { Text("+") }
+            FilledTonalButton(onClick = { scale = (scale * 1.7f).coerceAtMost(800f) }, contentPadding = PaddingValues(0.dp), modifier = Modifier.size(44.dp)) { Text("+") }
             Spacer(Modifier.height(4.dp))
-            FilledTonalButton(onClick = { zoom = (zoom / 1.7f).coerceAtLeast(1f) }, contentPadding = PaddingValues(0.dp), modifier = Modifier.size(44.dp)) { Text("−") }
+            FilledTonalButton(onClick = { scale = (scale / 1.7f).coerceAtLeast(3f) }, contentPadding = PaddingValues(0.dp), modifier = Modifier.size(44.dp)) { Text("−") }
         }
-        Column(Modifier.align(Alignment.TopStart)) {
-            TextButton(onClick = { zoom = 1f; pan = Offset.Zero }) { Text("Вся карта") }
-            if (selectedIds.isNotEmpty()) TextButton(onClick = {
-                val selected = mapStations.filter { it.id in selectedIds }
-                if (selected.isNotEmpty() && area.width > 0 && area.height > 0) {
-                    val longitudes = selected.map { if (it.longitude!! < -80) it.longitude + 360 else it.longitude }
-                    val centerLon = (longitudes.min() + longitudes.max()) / 2
-                    val centerLat = (selected.minOf { it.latitude!! } + selected.maxOf { it.latitude!! }) / 2
-                    val width = ((longitudes.max() - longitudes.min()) * 0.5).coerceAtLeast(2.0)
-                    val height = (selected.maxOf { it.latitude!! } - selected.minOf { it.latitude!! }).coerceAtLeast(2.0)
-                    val base = min(area.width / 90f, area.height / 52f)
-                    zoom = (min(area.width * 0.55 / width, area.height * 0.55 / height) / base).toFloat().coerceIn(1f, 64f)
-                    pan = Offset(((100 - centerLon) * 0.5 * base * zoom).toFloat(), ((centerLat - 62) * base * zoom).toFloat())
-                }
-            }) { Text("К выбранным точкам") }
-        }
-        Text("Natural Earth · обзорная карта", style = MaterialTheme.typography.labelSmall,
+        Text("Natural Earth · регионы · офлайн", style = MaterialTheme.typography.labelSmall,
             modifier = Modifier.align(Alignment.BottomStart).background(Color.White.copy(alpha = 0.9f)).padding(6.dp))
     }
 }

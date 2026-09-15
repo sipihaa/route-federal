@@ -17,32 +17,62 @@ class RouteFinder(private val timetable: Timetable) {
         horizonDays: Int = 7,
         maxStates: Int = 100_000,
         maxTimetableEvents: Int = 1_000_000,
+        defaultTransferMinutes: Int = 30,
         isCancelled: () -> Boolean = { false }
+    ): RouteSearchResult {
+        return searchStations(setOf(fromStationId), setOf(toStationId), localDate, horizonDays,
+            maxStates, maxTimetableEvents, defaultTransferMinutes, isCancelled)
+    }
+
+    fun searchCities(
+        fromCityId: String, toCityId: String, localDate: LocalDate, horizonDays: Int = 8,
+        defaultTransferMinutes: Int = 30, isCancelled: () -> Boolean = { false }
+    ): RouteSearchResult {
+        val cities = timetable.cities()
+        val origins = cities.find { it.id == fromCityId }?.stations.orEmpty().map { it.id }.toSet()
+        val destinations = cities.find { it.id == toCityId }?.stations.orEmpty().map { it.id }.toSet()
+        return searchStations(origins, destinations, localDate, horizonDays, 100_000,
+            1_000_000, defaultTransferMinutes, isCancelled)
+    }
+
+    private fun searchStations(
+        origins: Set<String>, destinations: Set<String>, localDate: LocalDate, horizonDays: Int,
+        maxStates: Int, maxTimetableEvents: Int, defaultTransferMinutes: Int,
+        isCancelled: () -> Boolean
     ): RouteSearchResult {
         if (isCancelled()) return emptyResult(SearchStatus.CANCELLED)
         val errors = TimetableValidator.validate(timetable).toMutableList()
         val stations = timetable.stations.associateBy { it.id }
-        if (fromStationId !in stations || toStationId !in stations) errors.add("Неизвестный пункт поиска.")
-        if (fromStationId == toStationId) errors.add("Выберите разные начальный и конечный пункты.")
+        if (origins.isEmpty() || destinations.isEmpty() ||
+            (origins + destinations).any { it !in stations }) errors.add("Неизвестный пункт поиска.")
+        if (origins.any { it in destinations }) errors.add("Выберите разные начальный и конечный пункты.")
+        val originCities = origins.mapNotNull { stations[it]?.cityId }.toSet()
+        if (destinations.any { stations[it]?.cityId in originCities }) {
+            errors.add("Внутригородские поездки не входят в область поиска.")
+        }
         if (horizonDays < 1) errors.add("Окно поиска должно быть не менее одного дня.")
+        if (defaultTransferMinutes !in 0..240) errors.add("Запас пересадки должен быть от 0 до 240 минут.")
         if (maxStates < 1 || maxTimetableEvents < 1) errors.add("Лимиты поиска должны быть положительными.")
         if (timetable.trips.isEmpty()) errors.add("Расписание не содержит рейсов.")
         if (isCancelled()) return emptyResult(SearchStatus.CANCELLED)
         if (errors.isNotEmpty()) return emptyResult(SearchStatus.INVALID_DATA, errors)
+        if (timetable.expiresAt != null && !Instant.now().isBefore(timetable.expiresAt)) {
+            return emptyResult(SearchStatus.EXPIRED_DATA, listOf("Срок кэша истёк. Загрузите обновлённое расписание."))
+        }
         if ((timetable.validFrom != null && localDate < timetable.validFrom) ||
             (timetable.validUntil != null && localDate > timetable.validUntil)) {
             return emptyResult(SearchStatus.DATE_OUT_OF_RANGE, listOf("Дата вне периода загруженных данных: ${timetable.validFrom} — ${timetable.validUntil}."))
         }
 
         return try {
-            val originZone = ZoneId.of(stations.getValue(fromStationId).timeZone)
+            val originZone = ZoneId.of(stations.getValue(origins.first()).timeZone)
             val windowStart = localDate.atStartOfDay(originZone).toInstant()
             var endDate = localDate.plusDays(horizonDays.toLong())
             timetable.validUntil?.let { if (endDate > it.plusDays(1)) endDate = it.plusDays(1) }
             val windowEnd = endDate.atStartOfDay(originZone).toInstant()
             SearchRun(
-                timetable, stations, fromStationId, toStationId, localDate, originZone,
-                windowStart, windowEnd, maxStates, maxTimetableEvents, isCancelled
+                timetable, stations, origins, destinations, originZone,
+                windowStart, windowEnd, maxStates, maxTimetableEvents, defaultTransferMinutes, isCancelled
             ).execute()
         } catch (error: DateTimeException) {
             emptyResult(SearchStatus.INVALID_DATA, listOf(error.message ?: "Некорректная дата или время."))
@@ -64,20 +94,19 @@ private data class PathState(val journey: Journey, val visitedStations: Set<Stri
 private class SearchRun(
     private val timetable: Timetable,
     private val stations: Map<String, Station>,
-    private val fromStationId: String,
-    private val toStationId: String,
-    private val localDate: LocalDate,
+    private val origins: Set<String>,
+    private val destinations: Set<String>,
     private val originZone: ZoneId,
     private val windowStart: Instant,
     private val windowEnd: Instant,
     private val maxStates: Int,
     private val maxTimetableEvents: Int,
+    private val defaultTransferMinutes: Int,
     private val isCancelled: () -> Boolean
 ) {
     private val boardings = mutableMapOf<String, MutableList<Boarding>>()
     private val queue = PriorityQueue<PathState> { first, second -> compareJourneys(first.journey, second.journey) }
     private val best = mutableMapOf<List<LegSignature>, Journey>()
-    private val unknownTransferStations = mutableSetOf<String>()
     private var generatedStates = 0
     private var examinedStates = 0
     private var preparationSteps = 0
@@ -85,9 +114,10 @@ private class SearchRun(
 
     fun execute(): RouteSearchResult {
         if (!prepareBoardings()) return result(stoppedWith ?: SearchStatus.RESOURCE_LIMIT)
-        for (boarding in boardings[fromStationId].orEmpty()) {
-            if (boarding.departure.atZone(originZone).toLocalDate() != localDate) continue
-            if (!addRides(null, boarding)) return result(stoppedWith ?: SearchStatus.RESOURCE_LIMIT)
+        for (origin in origins) {
+            for (boarding in boardings[origin].orEmpty()) {
+                if (!addRides(null, boarding)) return result(stoppedWith ?: SearchStatus.RESOURCE_LIMIT)
+            }
         }
         while (queue.isNotEmpty()) {
             if (checkCancellation()) return result(SearchStatus.CANCELLED)
@@ -97,24 +127,15 @@ private class SearchRun(
             val state = queue.remove()
             examinedStates++
             val lastLeg = state.journey.legs.last()
-            if (lastLeg.toStationId == toStationId) {
-                val signature = state.journey.signature()
-                val previous = best[signature]
-                if (previous == null || compareJourneys(state.journey, previous) < 0) best[signature] = state.journey
-                continue
-            }
             val nextBoardings = boardings[lastLeg.toStationId].orEmpty()
-            val minimum = stations.getValue(lastLeg.toStationId).minTransferMinutes
-            if (minimum == null) {
-                if (nextBoardings.any { !sameInstance(it, lastLeg) && !it.departure.isBefore(lastLeg.arrival) }) {
-                    unknownTransferStations.add(lastLeg.toStationId)
-                }
-                continue
-            }
+            val minimum = stations.getValue(lastLeg.toStationId).minTransferMinutes ?: defaultTransferMinutes
             val readyAt = lastLeg.arrival.plusSeconds(minimum.toLong() * 60)
             for (boarding in nextBoardings) {
                 if (checkCancellation()) return result(SearchStatus.CANCELLED)
                 if (boarding.departure.isBefore(readyAt) || sameInstance(boarding, lastLeg)) continue
+                // Later boardings cannot beat three already known complete routes.
+                val third = sortedBest().getOrNull(2)
+                if (third != null && Duration.between(state.journey.departure, boarding.departure).seconds > duration(third)) break
                 if (!addRides(state, boarding)) return result(stoppedWith ?: SearchStatus.RESOURCE_LIMIT)
             }
         }
@@ -173,12 +194,13 @@ private class SearchRun(
             val call = calls[index]
             // Passing a previous station on board is allowed; a new alighting must not create a transfer loop.
             if (call.stationId in visited) continue
+            val boardingCity = stations.getValue(boardingStation).cityId
+            if (boardingCity != null && boardingCity == stations.getValue(call.stationId).cityId) continue
             val arrival = call.arrival ?: continue
-            if (!arrival.isBefore(windowEnd)) break
-            if (generatedStates >= maxStates) {
-                stoppedWith = SearchStatus.RESOURCE_LIMIT
-                return false
-            }
+            // A known final arrival may be later than the last available departure day.
+            val third = sortedBest().getOrNull(2)
+            val firstDeparture = previous?.journey?.departure ?: boarding.departure
+            if (third != null && Duration.between(firstDeparture, arrival).seconds > duration(third)) continue
             val trip = instance.trip
             val leg = JourneyLeg(
                 trip.id, trip.routeId, trip.routeName, trip.transport, boardingStation,
@@ -186,9 +208,23 @@ private class SearchRun(
                 calls.subList(boarding.callIndex, index + 1).map { it.stationId }
             )
             val legs = previous?.journey?.legs.orEmpty() + leg
-            queue.add(PathState(Journey(legs), (visited + call.stationId)))
+            val journey = Journey(legs)
+            if (call.stationId in destinations) {
+                val signature = journey.signature()
+                val old = best[signature]
+                if (old == null || compareJourneys(journey, old) < 0) best[signature] = journey
+                if (best.size > 3) {
+                    val worst = best.values.maxWithOrNull(::compareJourneys)!!
+                    best.remove(worst.signature())
+                }
+                break
+            }
+            if (generatedStates >= maxStates) {
+                stoppedWith = SearchStatus.RESOURCE_LIMIT
+                return false
+            }
+            queue.add(PathState(journey, visited + call.stationId))
             generatedStates++
-            if (call.stationId == toStationId) break
         }
         return true
     }
@@ -218,17 +254,14 @@ private class SearchRun(
     private fun sortedBest(): List<Journey> = best.values.sortedWith(::compareJourneys).take(3)
 
     private fun result(status: SearchStatus): RouteSearchResult {
-        val lastArrival = windowEnd.atZone(originZone).format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm (XXX)"))
+        val lastDeparture = windowEnd.atZone(originZone).format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm (XXX)"))
         val limitations = mutableListOf(
-            "Показаны поездки с прибытием до $lastArrival, по времени станции отправления.",
+            "Новые посадки рассматриваются до $lastDeparture. Прибытие уже начатого рейса может быть позже.",
+            "При отсутствии правила станции запас пересадки — $defaultTransferMinutes мин. Это параметр расчёта, не норматив перевозчика.",
             "Рассматриваются маршруты без повторных посадок или высадок в уже посещённом пересадочном узле.",
             "Дата снимка ${timetable.snapshotDate} сама по себе не подтверждает актуальность расписания на дату поездки."
         )
         if (timetable.coverageNote.isNotBlank()) limitations.add(timetable.coverageNote)
-        if (unknownTransferStations.isNotEmpty()) {
-            val names = unknownTransferStations.sorted().map { stations.getValue(it).name }
-            limitations.add("Исключены пересадки без известного минимального времени: ${names.joinToString()}.")
-        }
         if (status == SearchStatus.RESOURCE_LIMIT) {
             limitations.add("Поиск остановлен из-за большого числа вариантов. Найденные маршруты могут быть не самыми быстрыми.")
         }

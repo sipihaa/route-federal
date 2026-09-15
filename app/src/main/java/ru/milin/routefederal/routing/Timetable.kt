@@ -1,8 +1,9 @@
 package ru.milin.routefederal.routing
 
 import java.time.LocalDate
+import java.time.Instant
 
-enum class TransportType { BUS, TRAIN }
+enum class TransportType(val title: String) { BUS("Автобус"), TRAIN("Поезд"), SUBURBAN("Электричка") }
 
 data class Station(
     val id: String,
@@ -11,7 +12,9 @@ data class Station(
     val latitude: Double?,
     val longitude: Double?,
     val timeZone: String,
-    val minTransferMinutes: Int? = null
+    val minTransferMinutes: Int? = null,
+    val cityId: String? = null,
+    val cityName: String? = null
 )
 
 data class Timetable(
@@ -20,7 +23,8 @@ data class Timetable(
     val snapshotDate: LocalDate,
     val coverageNote: String,
     val validFrom: LocalDate? = null,
-    val validUntil: LocalDate? = null
+    val validUntil: LocalDate? = null,
+    val expiresAt: Instant? = null
 )
 
 data class ScheduledTrip(
@@ -43,3 +47,10 @@ data class StopCall(
     val arrivalMinutes: Int?,
     val departureMinutes: Int?
 )
+
+/** A city groups endpoints only. It never connects its stations for transfers. */
+data class City(val id: String, val name: String, val stations: List<Station>)
+
+fun Timetable.cities(): List<City> = stations.groupBy { it.cityId ?: it.id }.map { (id, stops) ->
+    City(id, stops.first().cityName ?: stops.first().name, stops)
+}.sortedBy { it.name }
