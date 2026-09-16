@@ -30,27 +30,48 @@ route_federal.pdf      задание на курсовую работу
 
 ## Сборка и запуск
 
-Нужны JDK 17 и Android SDK 35. Минимальная версия Android — 10 (API 29).
+Используемые версии: Gradle 8.11.1 (через Gradle Wrapper), Android Gradle Plugin 8.10.1, Kotlin 2.2.21, Android SDK 35. Минимальная версия Android — 10 (API 29).
 
-Проще всего открыть проект в IntelliJ IDEA или Android Studio и запустить конфигурацию `app`. Из терминала:
+Gradle 8.11.1 работает только на Java 17–23. С более новой Java, например 25, сборка сразу падает, а в сообщении об ошибке указана только версия Java. Удобнее всего использовать Java, встроенную в IntelliJ IDEA (JBR 21).
+
+### На моём Mac
+
+Android SDK, эмулятор и кэш Gradle лежат в папках `.android-sdk`, `.android-user-home` и `.gradle-user-home` внутри проекта. В репозиторий они не входят. Скрипт `tools/android-env.sh` настраивает окружение для текущего окна терминала: Java из IntelliJ IDEA, путь к Android SDK, команды `adb` и `emulator`, кэш Gradle. Его нужно выполнять из корня проекта в каждом новом окне терминала.
+
+Терминал 1 — запуск эмулятора:
 
 ```sh
-./gradlew :app:assembleDebug
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+source tools/android-env.sh
+emulator -avd RouteFederal_API29 -gpu host -no-snapshot
 ```
 
-Готовый APK можно также просто скопировать на телефон и установить.
+Терминал 2 — после загрузки эмулятора сборка, установка и запуск приложения:
+
+```sh
+source tools/android-env.sh
+./gradlew :app:assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb shell am start -n ru.milin.routefederal/.MainActivity
+```
+
+Для сборки из самой IntelliJ IDEA в `Settings → Build, Execution, Deployment → Build Tools → Gradle` нужно выбрать Gradle JVM `/Applications/IntelliJ IDEA.app/Contents/jbr/Contents/Home`.
+
+### На другом компьютере
+
+Установить Android Studio (или Android SDK 35 и JDK 17–21) и открыть проект. Среда сама создаст файл `local.properties` с путём к SDK. После этого можно запустить конфигурацию `app` или собрать APK командой `./gradlew :app:assembleDebug`. Готовый APK `app/build/outputs/apk/debug/app-debug.apk` устанавливается через `adb install -r` или просто копируется на телефон.
 
 ## Данные расписания
 
 Файл расписания не входит в APK и в репозиторий: по условиям API Яндекс Расписаний данные можно хранить только как временный кэш.
 
 1. Получить ключ API Яндекс Расписаний, скопировать `.env.example` в `.env.local` и вписать ключ.
-2. Загрузить расписание: `python3 tools/download_yandex_network.py --download`. Направления и даты задаются в `data/yandex/network-plan.json`.
-3. Подготовить файл: `python3 tools/prepare_yandex_timetable.py`. Скрипт проверяет данные и создаёт `.yandex-cache/timetable.json`.
-4. Перенести файл на телефон и открыть его в приложении: «Данные» → «Импортировать расписание».
+2. Проверить план запросов: `python3 tools/download_yandex_network.py`. Направления, даты и лимит запросов задаются в `data/yandex/network-plan.json`.
+3. Скачать ответы API: `python3 tools/download_yandex_network.py --download`.
+4. Подготовить файл: `python3 tools/prepare_yandex_timetable.py`. Скрипт проверяет данные и создаёт `.yandex-cache/timetable.json`.
+5. Скопировать файл на эмулятор или телефон, например `adb push .yandex-cache/timetable.json /sdcard/Download/` (после `source tools/android-env.sh`).
+6. В приложении открыть «Данные» → «Импортировать расписание» и выбрать этот файл.
 
-Кэш действует около недели, после этого расписание нужно загрузить заново.
+Кэш действует не больше 7 дней с момента загрузки. После этого приложение не принимает файл, и данные нужно скачать заново.
 
 ## Формат файла расписания
 
@@ -64,9 +85,11 @@ JSON с полем `schemaVersion: 1` и тремя разделами:
 
 ## Тесты
 
+На моём Mac перед запуском Gradle выполнить `source tools/android-env.sh`.
+
 ```sh
 ./gradlew :app:testDebugUnitTest              # unit-тесты алгоритма
-./gradlew :app:connectedDebugAndroidTest      # UI-тесты, нужен эмулятор или телефон
+./gradlew :app:connectedDebugAndroidTest      # тесты на Android, эмулятор должен быть запущен
 python3 -m unittest discover -s tools -p 'test_yandex_*.py'
 ```
 
