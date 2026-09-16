@@ -116,6 +116,8 @@ private class SearchRun(
         if (!prepareBoardings()) return result(stoppedWith ?: SearchStatus.RESOURCE_LIMIT)
         for (origin in origins) {
             for (boarding in boardings[origin].orEmpty()) {
+                val selectedDate = windowStart.atZone(originZone).toLocalDate()
+                if (boarding.departure.atZone(originZone).toLocalDate() != selectedDate) continue
                 if (!addRides(null, boarding)) return result(stoppedWith ?: SearchStatus.RESOURCE_LIMIT)
             }
         }

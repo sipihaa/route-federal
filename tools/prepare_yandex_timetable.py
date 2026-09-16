@@ -205,6 +205,7 @@ def main():
     temp.write_bytes(body)
     temp.replace(target)
     audit = ROOT / 'docs/validation/yandex-network-audit-2026-09-15.json'
+    audit.parent.mkdir(parents=True, exist_ok=True)
     audit.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
     print(json.dumps({key: value for key, value in report.items() if key not in {'coverage', 'emptyQueries'}}, ensure_ascii=False, indent=2))
     print('Empty queries:', len(report['emptyQueries']))

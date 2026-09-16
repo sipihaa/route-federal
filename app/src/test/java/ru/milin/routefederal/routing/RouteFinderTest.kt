@@ -15,7 +15,7 @@ class RouteFinderTest {
     private fun data(trips: List<ScheduledTrip>, stops: List<Station> = listOf(station("A"), station("B"), station("C"), station("D"))) =
         Timetable(stops, trips, date, "Test fixtures only")
 
-    @Test fun searchesLaterDaysAndClampsToAvailablePeriod() {
+    @Test fun firstDepartureMustMatchSelectedDate() {
         val first = LocalDate.of(2026, 9, 21)
         val later = first.plusDays(4)
         val timetable = data(listOf(
@@ -25,10 +25,21 @@ class RouteFinderTest {
         )).copy(validFrom = first, validUntil = first.plusDays(7))
         val finder = RouteFinder(timetable)
         val result = finder.search("A", "D", first, horizonDays = 8)
-        assertEquals(listOf("fast", "early"), result.routes.map { it.legs.single().tripId })
-        assertEquals(later, result.routes.first().departure.atZone(java.time.ZoneId.of("Europe/Moscow")).toLocalDate())
-        assertEquals(60L, result.routes.first().durationMinutes)
+        assertEquals(listOf("early"), result.routes.map { it.legs.single().tripId })
+        assertEquals(first, result.routes.first().departure.atZone(java.time.ZoneId.of("Europe/Moscow")).toLocalDate())
+        assertEquals(180L, result.routes.first().durationMinutes)
         assertEquals("early", finder.search("A", "D", first, horizonDays = 1).routes.single().legs.single().tripId)
+    }
+
+    @Test fun selectedDepartureDateStillAllowsNextDayTransfer() {
+        val timetable = data(listOf(
+            trip("night", "A", "B", 1380, 1470).copy(daysOfWeek = emptySet(), includedDates = setOf(date)),
+            trip("next", "B", "D", 90, 150).copy(daysOfWeek = emptySet(), includedDates = setOf(date.plusDays(1)))
+        ))
+        val route = RouteFinder(timetable).search("A", "D", date).routes.single()
+        assertEquals(date, route.departure.atZone(java.time.ZoneId.of("Europe/Moscow")).toLocalDate())
+        assertEquals(date.plusDays(1), route.arrival.atZone(java.time.ZoneId.of("Europe/Moscow")).toLocalDate())
+        assertEquals(210L, route.durationMinutes)
     }
 
     @Test fun groupsEveryEndpointStationByCityButKeepsNearbyCitiesSeparate() {
@@ -169,7 +180,8 @@ class RouteFinderTest {
 
     @Test fun reportsLimitsCancellationAndInvalidInput() {
         val finder = RouteFinder(data(listOf(trip("one", "A", "D", 600, 660), trip("two", "A", "D", 700, 800))))
-        assertEquals(SearchStatus.RESOURCE_LIMIT, RouteFinder(data(listOf(trip("ab", "A", "B", 600, 660)))).search("A", "D", date, maxStates = 1).status)
+        val twoBranches = data(listOf(trip("ab", "A", "B", 600, 660), trip("ac", "A", "C", 620, 700)))
+        assertEquals(SearchStatus.RESOURCE_LIMIT, RouteFinder(twoBranches).search("A", "D", date, maxStates = 1).status)
         assertEquals(SearchStatus.CANCELLED, finder.search("A", "D", date, isCancelled = { true }).status)
         assertEquals(SearchStatus.INVALID_DATA, finder.search("A", "A", date).status)
         assertEquals(SearchStatus.INVALID_DATA, finder.search("X", "D", date).status)

@@ -107,7 +107,7 @@
         }
       ],
       "includedDates": [
-        "2026-09-15"
+        "2026-09-11"
       ]
     },
     {
@@ -228,6 +228,31 @@
           "arrivalMinutes": 1100,
           "departureMinutes": null
         }
+      ]
+    },
+    {
+      "id": "later-fast",
+      "routeId": "later-fast",
+      "routeName": "Только 15 сентября",
+      "transport": "BUS",
+      "timeZone": "Europe/Moscow",
+      "daysOfWeek": [],
+      "seasonStart": "01-01",
+      "seasonEnd": "12-31",
+      "calls": [
+        {
+          "stationId": "A",
+          "arrivalMinutes": null,
+          "departureMinutes": 900
+        },
+        {
+          "stationId": "D",
+          "arrivalMinutes": 930,
+          "departureMinutes": null
+        }
+      ],
+      "includedDates": [
+        "2026-09-15"
       ]
     }
   ]

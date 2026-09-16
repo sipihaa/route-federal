@@ -64,7 +64,7 @@ class RouteScreenTest {
         screen.onNodeWithTag("main_content").performScrollToNode(hasTestTag("result_title"))
         screen.onNodeWithTag("result_title").performScrollTo().assertTextEquals("Найдено вариантов: 3")
         screen.onNodeWithTag("route_0").performScrollTo().assertTextContains("2 ч 30 мин · пересадок: 1", substring = true)
-        screen.onNodeWithTag("route_0").assertTextContains("Отправление: 15.09", substring = true)
+        screen.onNodeWithTag("route_0").assertTextContains("Отправление: 11.09", substring = true)
         screen.onNodeWithTag("route_1").performScrollTo().assertTextContains("3 ч 0 мин · пересадок: 1", substring = true)
         screen.onNodeWithTag("route_2").performScrollTo().assertTextContains("3 ч 20 мин · пересадок: 0", substring = true)
         screen.onNodeWithTag("main_content").performScrollToNode(hasText("Ожидание пересадки: 30 мин"))

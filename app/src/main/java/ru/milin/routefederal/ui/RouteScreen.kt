@@ -80,8 +80,8 @@ fun RouteApp(model: RouteViewModel = viewModel()) {
                 item {
                     SectionCard {
                         Text("Область поиска", style = MaterialTheme.typography.titleMedium)
-                        Text("Первое отправление — в выбранную дату или позже, в пределах окна поиска. Ожидания на пересадках входят во время в пути; ожидание до первой посадки не входит.")
-                        Text("Ищем отправления в пределах периода данных:")
+                        Text("Первое отправление — только в выбранную дату. Пересадки и прибытие могут быть в последующие дни. Ожидания на пересадках входят во время в пути; ожидание до первой посадки не входит.")
+                        Text("Период для продолжения поездки и пересадок:")
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             for (days in listOf(1, 3, 8)) FilterChip(state.horizonDays == days,
                                 onClick = { model.chooseHorizon(days) }, label = { Text("$days дней") })
@@ -117,7 +117,7 @@ fun RouteApp(model: RouteViewModel = viewModel()) {
                                     state.date.year, state.date.monthValue - 1, state.date.dayOfMonth).show()
                             }, modifier = Modifier.testTag("choose_date")) { Text(state.date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))) }
                         }
-                        Text("Отправления с ${state.date.format(DateTimeFormatter.ofPattern("dd.MM"))} по ${minOf(state.date.plusDays(state.horizonDays - 1L), state.data?.timetable?.validUntil ?: state.date.plusDays(state.horizonDays - 1L)).format(DateTimeFormatter.ofPattern("dd.MM"))}. Ожидание до первой посадки не учитывается", style = MaterialTheme.typography.bodySmall)
+                        Text("Отправление только ${state.date.format(DateTimeFormatter.ofPattern("dd.MM"))}. Ожидание до первой посадки не учитывается", style = MaterialTheme.typography.bodySmall)
                         if (state.searching) {
                             LinearProgressIndicator(Modifier.fillMaxWidth())
                             OutlinedButton(onClick = model::cancelSearch, modifier = Modifier.fillMaxWidth()) { Text("Отменить поиск") }
@@ -140,7 +140,7 @@ fun RouteApp(model: RouteViewModel = viewModel()) {
                     item {
                         Text(if (result.status == SearchStatus.COMPLETED_IN_WINDOW) "Найдено вариантов: ${journeys.size}" else "Поиск не завершён",
                             style = MaterialTheme.typography.titleLarge, modifier = Modifier.testTag("result_title"))
-                        Text("По загруженному расписанию; окно отправлений — ${state.horizonDays} дней", style = MaterialTheme.typography.bodySmall)
+                        Text("По загруженному расписанию; период с учётом пересадок — ${state.horizonDays} дней", style = MaterialTheme.typography.bodySmall)
                         if (result.errors.isNotEmpty()) Text(result.errors.joinToString("\n"), color = MaterialTheme.colorScheme.error)
                         if (journeys.isEmpty() && result.status == SearchStatus.COMPLETED_IN_WINDOW) Text("Варианты в этой базе и периоде не найдены. Это не означает отсутствия сообщения.")
                     }
