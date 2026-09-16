@@ -34,7 +34,7 @@ route_federal.pdf      задание на курсовую работу
 
 Gradle 8.11.1 работает только на Java 17–23. С более новой Java, например 25, сборка сразу падает, а в сообщении об ошибке указана только версия Java. Удобнее всего использовать Java, встроенную в IntelliJ IDEA (JBR 21).
 
-### На моём Mac
+### На моём компьютере
 
 Android SDK, эмулятор и кэш Gradle лежат в папках `.android-sdk`, `.android-user-home` и `.gradle-user-home` внутри проекта. В репозиторий они не входят. Скрипт `tools/android-env.sh` настраивает окружение для текущего окна терминала: Java из IntelliJ IDEA, путь к Android SDK, команды `adb` и `emulator`, кэш Gradle. Его нужно выполнять из корня проекта в каждом новом окне терминала.
 
@@ -85,7 +85,7 @@ JSON с полем `schemaVersion: 1` и тремя разделами:
 
 ## Тесты
 
-На моём Mac перед запуском Gradle выполнить `source tools/android-env.sh`.
+На моём компьютере перед запуском Gradle выполнить `source tools/android-env.sh`.
 
 ```sh
 ./gradlew :app:testDebugUnitTest              # unit-тесты алгоритма
