@@ -1,20 +1,38 @@
 package ru.vladm.routefederal.ui.main
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import ru.vladm.routefederal.RouteFederalApp
 import ru.vladm.routefederal.data.City
 import ru.vladm.routefederal.data.CityRepository
 import ru.vladm.routefederal.data.Route
+import ru.vladm.routefederal.data.ScheduleRepository
+import ru.vladm.routefederal.data.StationRepository
+import ru.vladm.routefederal.search.RouteFinder
+import ru.vladm.routefederal.ui.common.dateFormatter
 import java.time.LocalDate
 
 class MainViewModel(
-    private val cityRepository: CityRepository = CityRepository()
+    private val scheduleRepository: ScheduleRepository,
+    private val cityRepository: CityRepository = CityRepository(),
+    private val stationRepository: StationRepository = StationRepository(),
+    private val routeFinder: RouteFinder = RouteFinder(stationRepository.stations),
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(MainUiState(cities=cityRepository.cities))
+    private val _uiState = MutableStateFlow(MainUiState(
+        cities = cityRepository.cities,
+        stationNames = stationRepository.stations.associate { it.id to it.name },
+    ))
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
     fun onDepartureCitySelected(city: City) {
@@ -46,6 +64,7 @@ class MainViewModel(
     }
 
     fun onFindRouteClick() {
+        if (uiState.value.isSearching) return
         if (uiState.value.departureCity == null) {
             _uiState.update { it.copy(errorMessage = "Выберите город отправления") }
             return
@@ -58,12 +77,45 @@ class MainViewModel(
             _uiState.update { it.copy(errorMessage = "Города отправления и прибытия не должны совпадать") }
             return
         }
-        // TODO: Проверка на то, скачано ли расписание на нужные даты (D-1, D, D+1)
-        // if () {}
+        // Для поиска на дату D нужны участки за D и D+1 (продолжения поездок после полуночи)
+        val date = uiState.value.date
+        val missing = listOf(date, date.plusDays(1)).filterNot { scheduleRepository.isLoaded(it) }
+        if (missing.isNotEmpty()) {
+            val dates = missing.joinToString(" и ") { it.format(dateFormatter) }
+            _uiState.update { it.copy(errorMessage = "Загрузите расписание на $dates на вкладке «Данные»") }
+            return
+        }
 
-        // TODO: Вызов метода поиска маршрута
-        _uiState.update { it.copy(currentPage = PAGE_ROUTES) }
+        val fromStationIds = stationIdsOf(uiState.value.departureCity!!)
+        val toStationIds = stationIdsOf(uiState.value.arrivalCity!!)
+        _uiState.update { it.copy(isSearching = true) }
+
+        viewModelScope.launch {
+            val rides = scheduleRepository.loadRides(listOf(date, date.plusDays(1)))
+            // Поиск — вычисления, поэтому выполняется не в главном потоке
+            val routes = withContext(Dispatchers.Default) {
+                routeFinder.find(rides, fromStationIds, toStationIds, date)
+            }
+            _uiState.update {
+                if (routes.isEmpty()) {
+                    it.copy(
+                        isSearching = false,
+                        errorMessage = "Маршруты на ${date.format(dateFormatter)} не найдены",
+                    )
+                } else {
+                    it.copy(
+                        isSearching = false,
+                        routes = routes,
+                        selectedRoute = routes.first(),
+                        currentPage = PAGE_ROUTES,
+                    )
+                }
+            }
+        }
     }
+
+    private fun stationIdsOf(city: City): Set<String> =
+        stationRepository.stations.filter { it.cityId == city.id }.map { it.id }.toSet()
 
     fun onBackClick() {
         _uiState.update { it.copy(currentPage = PAGE_SELECTION) }
@@ -75,5 +127,19 @@ class MainViewModel(
 
     fun onErrorShown() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    companion object {
+        // ViewModel с параметрами создаётся через фабрику: зависимости берутся из AppContainer
+        val Factory = viewModelFactory {
+            initializer {
+                val container = (this[APPLICATION_KEY] as RouteFederalApp).container
+                MainViewModel(
+                    scheduleRepository = container.scheduleRepository,
+                    cityRepository = container.cityRepository,
+                    stationRepository = container.stationRepository,
+                )
+            }
+        }
     }
 }

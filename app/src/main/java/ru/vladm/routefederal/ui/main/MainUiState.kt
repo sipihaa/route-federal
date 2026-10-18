@@ -1,7 +1,6 @@
 package ru.vladm.routefederal.ui.main
 
 import ru.vladm.routefederal.data.City
-import ru.vladm.routefederal.data.CityRepository
 import ru.vladm.routefederal.data.Route
 import java.time.LocalDate
 
@@ -17,5 +16,9 @@ data class MainUiState(
     val currentPage: String = PAGE_SELECTION,
     val routes: List<Route> = emptyList(),
     val selectedRoute: Route? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    // Названия станций по id — для показа деталей маршрута
+    val stationNames: Map<String, String> = emptyMap(),
+    // Идёт поиск — защита от повторного нажатия «Найти маршрут»
+    val isSearching: Boolean = false,
 )

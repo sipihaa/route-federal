@@ -19,7 +19,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import ru.vladm.routefederal.ui.data.DataScreen
+import ru.vladm.routefederal.ui.data.DataRoute
 import ru.vladm.routefederal.ui.main.MainRoute
 
 // Вкладки нижней панели: адрес экрана в навигации, подпись и иконка
@@ -65,7 +65,7 @@ fun AppNavigation() {
             modifier = Modifier.padding(innerPadding),
         ) {
             composable(Tab.MAIN.route) { MainRoute() }
-            composable(Tab.DATA.route) { DataScreen() }
+            composable(Tab.DATA.route) { DataRoute() }
         }
     }
 }

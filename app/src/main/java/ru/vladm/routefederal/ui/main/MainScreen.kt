@@ -2,31 +2,30 @@ package ru.vladm.routefederal.ui.main
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Button
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -36,18 +35,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import ru.vladm.routefederal.data.City
+import ru.vladm.routefederal.data.Leg
 import ru.vladm.routefederal.data.Route
-import java.time.Instant
+import ru.vladm.routefederal.ui.common.DateField
+import ru.vladm.routefederal.ui.common.shortDateFormatter
+import ru.vladm.routefederal.ui.common.timeFormatter
+import java.time.Duration
 import java.time.LocalDate
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
+import java.time.OffsetDateTime
 
 // Связывает экран с ViewModel: берёт состояние и передаёт события
 @Composable
-fun MainRoute(viewModel: MainViewModel = viewModel()) {
+fun MainRoute(viewModel: MainViewModel = viewModel(factory = MainViewModel.Factory)) {
     val state by viewModel.uiState.collectAsState()
 
     MainScreen(
@@ -105,6 +108,8 @@ fun MainScreen(
                 when (state.currentPage) {
                     PAGE_ROUTES -> RoutesPage(
                         routes = state.routes,
+                        selectedRoute = state.selectedRoute,
+                        stationNames = state.stationNames,
                         onBackClick = onBackClick,
                         onRouteSelected = onRouteSelected,
                     )
@@ -166,7 +171,7 @@ private fun SelectionPage(
             onClick = onFindRouteClick,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Найти маршрут")
+            Text(if (state.isSearching) "Поиск…" else "Найти маршрут")
         }
     }
 }
@@ -213,69 +218,135 @@ private fun CityDropdown(
     }
 }
 
-private val dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DateField(date: LocalDate, onDateSelected: (LocalDate) -> Unit) {
-    var showDialog by remember { mutableStateOf(false) }
-
-    OutlinedButton(
-        onClick = { showDialog = true },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Text("Дата: ${date.format(dateFormatter)}")
-    }
-
-    if (showDialog) {
-        // DatePicker работает с миллисекундами в UTC, поэтому переводим LocalDate туда и обратно
-        val pickerState = rememberDatePickerState(
-            initialSelectedDateMillis = date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-        )
-        DatePickerDialog(
-            onDismissRequest = { showDialog = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    pickerState.selectedDateMillis?.let { millis ->
-                        onDateSelected(Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate())
-                    }
-                    showDialog = false
-                }) { Text("OK") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDialog = false }) { Text("Отмена") }
-            },
+private fun RoutesPage(
+    routes: List<Route>,
+    selectedRoute: Route?,
+    stationNames: Map<String, String>,
+    onBackClick: () -> Unit,
+    onRouteSelected: (Route) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        TextButton(onClick = onBackClick) {
+            Text("← Назад")
+        }
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            DatePicker(state = pickerState)
+            itemsIndexed(routes) { index, route ->
+                RouteCard(
+                    index = index,
+                    route = route,
+                    expanded = route == selectedRoute,
+                    stationNames = stationNames,
+                    onClick = { onRouteSelected(route) },
+                )
+            }
+        }
+        // Обязательное условие API: указать источник данных
+        Text(
+            text = "Данные: Яндекс Расписания",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun RouteCard(
+    index: Int,
+    route: Route,
+    expanded: Boolean,
+    stationNames: Map<String, String>,
+    onClick: () -> Unit,
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = if (expanded) {
+            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+        } else {
+            CardDefaults.cardColors()
+        },
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "${index + 1}. ${formatTime(route.departure)} → ${formatTime(route.arrival)}" +
+                        dayShift(route),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(formatDuration(route.duration), style = MaterialTheme.typography.titleMedium)
+            }
+            Text(
+                text = if (route.transfers == 0) "Без пересадок" else "Пересадок: ${route.transfers}",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            if (expanded) {
+                route.legs.forEachIndexed { i, leg ->
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    LegDetails(leg, stationNames)
+                    if (i < route.legs.lastIndex) {
+                        val wait = Duration.between(leg.arrival, route.legs[i + 1].departure)
+                        Text(
+                            text = "Пересадка, ожидание ${formatDuration(wait)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun RoutesPage(
-    routes: List<Route>,
-    onBackClick: () -> Unit,
-    onRouteSelected: (Route) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        TextButton(onClick = onBackClick) {
-            Text("← Назад")
-        }
-        if (routes.isEmpty()) {
-            Text("Маршруты не найдены (поиск пока не реализован)")
-        } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                itemsIndexed(routes) { index, route ->
-                    // Заглушка карточки: содержимое появится вместе с моделью маршрута
-                    Text(
-                        text = "Маршрут ${index + 1}",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onRouteSelected(route) }
-                            .padding(12.dp),
-                    )
-                }
-            }
-        }
+private fun LegDetails(leg: Leg, stationNames: Map<String, String>) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = "${transportName(leg.transportType)} ${leg.number}".trim() + " · ${leg.title}",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+        )
+        Text(
+            text = "${formatDateTime(leg.departure)}  ${stationNames[leg.fromStationId] ?: leg.fromStationId}",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Text(
+            text = "${formatDateTime(leg.arrival)}  ${stationNames[leg.toStationId] ?: leg.toStationId}",
+            style = MaterialTheme.typography.bodySmall,
+        )
     }
+}
+
+private fun transportName(type: String) = when (type) {
+    "train" -> "Поезд"
+    "suburban" -> "Электричка"
+    "bus" -> "Автобус"
+    else -> type
+}
+
+private fun formatTime(time: OffsetDateTime): String = time.format(timeFormatter)
+
+// В деталях указываем и дату: поездка может переходить через полночь
+private fun formatDateTime(time: OffsetDateTime): String =
+    "${time.format(timeFormatter)} (${time.format(shortDateFormatter)})"
+
+// «+1», если прибытие на следующие сутки после отправления
+private fun dayShift(route: Route): String {
+    val days = route.arrival.toLocalDate().toEpochDay() - route.departure.toLocalDate().toEpochDay()
+    return if (days > 0) " (+$days)" else ""
+}
+
+private fun formatDuration(duration: Duration): String {
+    val hours = duration.toHours()
+    val minutes = duration.toMinutesPart()
+    return if (hours > 0) "$hours ч $minutes мин" else "$minutes мин"
 }
