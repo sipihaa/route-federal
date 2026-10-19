@@ -3,39 +3,18 @@ package ru.vladm.routefederal.search
 import ru.vladm.routefederal.data.Leg
 import ru.vladm.routefederal.data.Ride
 import ru.vladm.routefederal.data.Route
-import ru.vladm.routefederal.data.Station
 import java.time.Duration
 import java.time.LocalDate
 import java.util.PriorityQueue
 
 // Офлайн-поиск маршрутов по загруженным участкам. Чистый Kotlin, без Android.
 //
-// Граф: вершины — станции, рёбра — участки с конкретным временем отправления и прибытия.
 // Поиск «лучший-первый» (вариант алгоритма Дейкстры для расписаний): из очереди с приоритетом
-// всегда берётся частичный путь с наименьшим временем в пути от первого отправления.
-// Время в пути при продлении пути только растёт, поэтому пути до цели извлекаются из очереди
-// в порядке возрастания времени, и первые maxResults различных путей — лучшие.
-class RouteFinder(
-    stations: List<Station>,
-    // Минимальное время на пересадку на той же станции
-    private val minTransfer: Duration = Duration.ofMinutes(30),
-    // Минимальное время на пересадку на другую станцию того же города (дорога между вокзалами)
-    private val minCityTransfer: Duration = Duration.ofMinutes(90),
-    // Максимальное ожидание на пересадке: варианты с ожиданием почти в сутки бесполезны
-    private val maxTransferWait: Duration = Duration.ofHours(8),
-    // Защита от слишком долгого поиска на больших данных
-    private val maxExpanded: Int = 50_000,
-) {
+// всегда берётся частичный путь с наименьшим временем в пути. Время в пути при продлении
+// пути только растёт, поэтому первые найденные пути до цели — самые быстрые.
+class RouteFinder {
 
-    // Станции каждого города: пересесть можно и на соседний вокзал/автовокзал
-    private val stationsOfSameCity: Map<String, List<String>> = stations
-        .groupBy { it.cityId }
-        .values
-        .flatMap { group -> group.map { station -> station.id to group.map { it.id } } }
-        .toMap()
-
-    // Частичный путь: участки по порядку и уже посещённые станции (чтобы не ходить по кругу)
-    private class State(val rides: List<Ride>, val visited: Set<String>) {
+    private class Path(val rides: List<Ride>) {
         val last: Ride get() = rides.last()
         val duration: Duration = Duration.between(rides.first().departure, rides.last().arrival)
     }
@@ -45,81 +24,68 @@ class RouteFinder(
         fromStationIds: Set<String>,
         toStationIds: Set<String>,
         date: LocalDate,
-        maxResults: Int = 3,
     ): List<Route> {
-        // Участки, отправляющиеся с каждой станции, по времени отправления
-        val outgoing = rides.groupBy { it.fromStationId }
+        val ridesFrom = rides.groupBy { it.fromStationId }
+        val queue = PriorityQueue<Path>(compareBy { it.duration })
 
-        val queue = PriorityQueue<State>(compareBy({ it.duration }, { it.rides.size }))
+        // Начало: участки со станций города отправления, отправляющиеся в выбранный день
+        rides.filter { it.fromStationId in fromStationIds && it.departure.toLocalDate() == date }
+            .forEach { queue.add(Path(listOf(it))) }
 
-        // Начало пути: участки со станций города отправления, отправляющиеся в выбранный день
-        fromStationIds.flatMap { outgoing[it].orEmpty() }
-            .filter { it.departure.toLocalDate() == date && it.toStationId !in fromStationIds }
-            .forEach { queue.add(State(listOf(it), setOf(it.fromStationId, it.toStationId))) }
+        val results = mutableListOf<Route>()
+        var steps = 0
+        // steps ограничивает перебор, если маршрута нет вовсе
+        while (queue.isNotEmpty() && results.size < MAX_RESULTS && steps < MAX_STEPS) {
+            val path = queue.poll()!!
+            steps++
 
-        val results = linkedMapOf<String, Route>()
-        var expanded = 0
-
-        while (queue.isNotEmpty() && results.size < maxResults && expanded < maxExpanded) {
-            val state = queue.poll()!!
-            expanded++
-
-            if (state.last.toStationId in toStationIds) {
-                val route = toRoute(state.rides)
-                // Одинаковые по составу варианты (тот же рейс теми же станциями) считаем одним:
-                // первым из очереди пришёл самый быстрый из них
-                results.putIfAbsent(signature(route), route)
+            if (path.last.toStationId in toStationIds) {
+                val route = toRoute(path.rides)
+                // Один и тот же вариант может получиться разными путями (например, прямым
+                // участком Москва → Нижний и цепочкой Москва → Владимир → Нижний того же поезда)
+                if (route !in results) results.add(route)
                 continue
             }
 
-            val here = state.last.toStationId
-            val nearby = stationsOfSameCity[here] ?: listOf(here)
-            for (station in nearby) {
-                for (next in outgoing[station].orEmpty()) {
-                    if (next.toStationId in state.visited || next.toStationId in fromStationIds) continue
-                    val sameTrip = next.serviceKey == state.last.serviceKey && station == here
-                    // Продолжение той же поездки — без ожидания, пересадка — с запасом времени
-                    val wait = when {
-                        sameTrip -> Duration.ZERO
-                        station == here -> minTransfer
-                        else -> minCityTransfer
-                    }
-                    if (next.departure.isBefore(state.last.arrival.plus(wait))) continue
-                    if (!sameTrip && next.departure.isAfter(state.last.arrival.plus(maxTransferWait))) continue
-                    queue.add(State(state.rides + next, state.visited + next.fromStationId + next.toStationId))
-                }
+            val visited = path.rides.map { it.fromStationId }
+            for (next in ridesFrom[path.last.toStationId].orEmpty()) {
+                if (next.toStationId in visited) continue
+                // Та же поездка — едем дальше без ожидания, иначе это пересадка
+                val sameTrip = next.serviceKey == path.last.serviceKey
+                val wait = Duration.between(path.last.arrival, next.departure)
+                if (sameTrip && wait.isNegative) continue
+                if (!sameTrip && (wait < MIN_TRANSFER || wait > MAX_TRANSFER)) continue
+                queue.add(Path(path.rides + next))
             }
         }
-        return results.values.toList()
+        return results
     }
 
-    // Подряд идущие участки одной поездки склеиваются в один проезд
+    // Подряд идущие участки одной поездки склеиваются в один проезд (Leg)
     private fun toRoute(rides: List<Ride>): Route {
-        val legs = mutableListOf<Leg>()
-        var group = mutableListOf(rides.first())
+        val groups = mutableListOf(mutableListOf(rides.first()))
         for (ride in rides.drop(1)) {
-            if (ride.serviceKey == group.last().serviceKey) {
-                group.add(ride)
-            } else {
-                legs.add(toLeg(group))
-                group = mutableListOf(ride)
-            }
+            if (ride.serviceKey == groups.last().last().serviceKey) groups.last().add(ride)
+            else groups.add(mutableListOf(ride))
         }
-        legs.add(toLeg(group))
-        return Route(legs)
+        return Route(groups.map { group ->
+            Leg(
+                fromStationId = group.first().fromStationId,
+                toStationId = group.last().toStationId,
+                departure = group.first().departure,
+                arrival = group.last().arrival,
+                number = group.first().number,
+                title = group.first().title,
+                transportType = group.first().transportType,
+            )
+        })
     }
 
-    private fun toLeg(group: List<Ride>) = Leg(
-        fromStationId = group.first().fromStationId,
-        toStationId = group.last().toStationId,
-        departure = group.first().departure,
-        arrival = group.last().arrival,
-        number = group.first().number,
-        title = group.first().title,
-        transportType = group.first().transportType,
-    )
-
-    // Рейс и станции каждого проезда, без даты: разные дни одного поезда — один вариант
-    private fun signature(route: Route): String =
-        route.legs.joinToString("|") { "${it.number}/${it.title}@${it.fromStationId}>${it.toStationId}" }
+    private companion object {
+        const val MAX_RESULTS = 3
+        const val MAX_STEPS = 50_000
+        // Минимальное время на пересадку и максимальное ожидание
+        val MIN_TRANSFER: Duration = Duration.ofMinutes(30)
+        val MAX_TRANSFER: Duration = Duration.ofHours(8)
+    }
 }

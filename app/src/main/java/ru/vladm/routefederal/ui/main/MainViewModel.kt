@@ -26,7 +26,7 @@ class MainViewModel(
     private val scheduleRepository: ScheduleRepository,
     private val cityRepository: CityRepository = CityRepository(),
     private val stationRepository: StationRepository = StationRepository(),
-    private val routeFinder: RouteFinder = RouteFinder(stationRepository.stations),
+    private val routeFinder: RouteFinder = RouteFinder(),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState(
@@ -64,7 +64,6 @@ class MainViewModel(
     }
 
     fun onFindRouteClick() {
-        if (uiState.value.isSearching) return
         if (uiState.value.departureCity == null) {
             _uiState.update { it.copy(errorMessage = "Выберите город отправления") }
             return
@@ -79,32 +78,26 @@ class MainViewModel(
         }
         // Для поиска на дату D нужны участки за D и D+1 (продолжения поездок после полуночи)
         val date = uiState.value.date
-        val missing = listOf(date, date.plusDays(1)).filterNot { scheduleRepository.isLoaded(it) }
-        if (missing.isNotEmpty()) {
-            val dates = missing.joinToString(" и ") { it.format(dateFormatter) }
+        val nextDate = date.plusDays(1)
+        if (!scheduleRepository.isLoaded(date) || !scheduleRepository.isLoaded(nextDate)) {
+            val dates = "${date.format(dateFormatter)} и ${nextDate.format(dateFormatter)}"
             _uiState.update { it.copy(errorMessage = "Загрузите расписание на $dates на вкладке «Данные»") }
             return
         }
 
         val fromStationIds = stationIdsOf(uiState.value.departureCity!!)
         val toStationIds = stationIdsOf(uiState.value.arrivalCity!!)
-        _uiState.update { it.copy(isSearching = true) }
-
         viewModelScope.launch {
-            val rides = scheduleRepository.loadRides(listOf(date, date.plusDays(1)))
+            val rides = scheduleRepository.loadRides(listOf(date, nextDate))
             // Поиск — вычисления, поэтому выполняется не в главном потоке
             val routes = withContext(Dispatchers.Default) {
                 routeFinder.find(rides, fromStationIds, toStationIds, date)
             }
             _uiState.update {
                 if (routes.isEmpty()) {
-                    it.copy(
-                        isSearching = false,
-                        errorMessage = "Маршруты на ${date.format(dateFormatter)} не найдены",
-                    )
+                    it.copy(errorMessage = "Маршруты на ${date.format(dateFormatter)} не найдены")
                 } else {
                     it.copy(
-                        isSearching = false,
                         routes = routes,
                         selectedRoute = routes.first(),
                         currentPage = PAGE_ROUTES,

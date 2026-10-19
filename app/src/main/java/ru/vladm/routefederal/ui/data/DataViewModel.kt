@@ -5,21 +5,16 @@ import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.AP
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import retrofit2.HttpException
 import ru.vladm.routefederal.RouteFederalApp
 import ru.vladm.routefederal.data.ScheduleRepository
 import ru.vladm.routefederal.data.SettingsRepository
 import ru.vladm.routefederal.ui.common.dateFormatter
-import java.io.IOException
 import java.time.LocalDate
 
 class DataViewModel(
@@ -31,17 +26,10 @@ class DataViewModel(
     val uiState: StateFlow<DataUiState> = _uiState.asStateFlow()
 
     init {
-        // Сохранённый ключ приходит из DataStore потоком: сразу и после каждого сохранения
+        // Сохранённый ключ читаем из DataStore один раз и подставляем в поле ввода
         viewModelScope.launch {
-            settingsRepository.apiKey.collect { key ->
-                _uiState.update {
-                    it.copy(
-                        savedApiKey = key,
-                        // При первом получении подставляем сохранённый ключ в поле ввода
-                        enteredApiKey = if (it.savedApiKey == null && it.enteredApiKey.isEmpty()) key.orEmpty() else it.enteredApiKey,
-                    )
-                }
-            }
+            val key = settingsRepository.apiKey.first()
+            _uiState.update { it.copy(savedApiKey = key, enteredApiKey = key.orEmpty()) }
         }
         // Загруженные даты — из репозитория, общего с главным экраном
         viewModelScope.launch {
@@ -57,13 +45,9 @@ class DataViewModel(
 
     fun onSaveApiKeyClick() {
         val key = uiState.value.enteredApiKey.trim()
-        if (key.isEmpty()) {
-            _uiState.update { it.copy(message = "Введите API-ключ") }
-            return
-        }
         viewModelScope.launch {
             settingsRepository.saveApiKey(key)
-            _uiState.update { it.copy(message = "Ключ сохранён") }
+            _uiState.update { it.copy(savedApiKey = key, message = "Ключ сохранён") }
         }
     }
 
@@ -72,26 +56,22 @@ class DataViewModel(
     }
 
     fun onDownloadClick() {
-        val state = uiState.value
-        if (state.isLoading) return
-        val key = state.savedApiKey
+        val key = uiState.value.savedApiKey
         if (key.isNullOrBlank()) {
             _uiState.update { it.copy(message = "Сначала сохраните API-ключ") }
             return
         }
-        val date = state.selectedDate
-        _uiState.update { it.copy(isLoading = true, progress = 0f, message = null) }
+        val date = uiState.value.selectedDate
+        _uiState.update { it.copy(isLoading = true, progress = 0f) }
 
         viewModelScope.launch {
             val message = try {
-                val requests = scheduleRepository.download(date, key) { done, total ->
+                scheduleRepository.download(date, key) { done, total ->
                     _uiState.update { it.copy(progress = done.toFloat() / total) }
                 }
-                "Расписание на ${date.format(dateFormatter)} загружено ($requests запросов к API)"
-            } catch (e: CancellationException) {
-                throw e
+                "Расписание на ${date.format(dateFormatter)} загружено"
             } catch (e: Exception) {
-                errorText(e)
+                "Не удалось загрузить расписание. Проверьте ключ и подключение к интернету"
             }
             _uiState.update { it.copy(isLoading = false, message = message) }
         }
@@ -100,19 +80,6 @@ class DataViewModel(
     fun onMessageShown() {
         _uiState.update { it.copy(message = null) }
     }
-
-    private fun errorText(e: Exception): String = when {
-        e is HttpException && e.code() == 429 -> "Превышен лимит запросов к API"
-        // API присылает причину ошибки в теле ответа: {"error": {"text": "Неверный ключ ..."}}
-        e is HttpException -> apiErrorText(e)?.let { "Ошибка API: $it" } ?: "Ошибка API: HTTP ${e.code()}"
-        e is IOException -> "Нет соединения с сервером"
-        else -> "Не удалось загрузить расписание: ${e.message}"
-    }
-
-    private fun apiErrorText(e: HttpException): String? = runCatching {
-        val body = e.response()?.errorBody()?.string() ?: return null
-        Json.parseToJsonElement(body).jsonObject["error"]?.jsonObject?.get("text")?.jsonPrimitive?.content
-    }.getOrNull()
 
     companion object {
         val Factory = viewModelFactory {

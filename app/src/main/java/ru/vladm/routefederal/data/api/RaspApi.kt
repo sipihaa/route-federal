@@ -9,8 +9,8 @@ import retrofit2.http.Query
 // API Яндекс Расписаний: https://yandex.ru/dev/rasp/doc/ru/
 interface RaspApi {
 
-    // Рейсы между двумя точками. transfers=false — только прямые рейсы,
-    // маршруты с пересадками приложение строит само (офлайн).
+    // Прямые рейсы между двумя точками (transfers=false).
+    // Маршруты с пересадками приложение строит само, офлайн.
     @GET("v3.0/search/")
     suspend fun search(
         @Header("Authorization") apiKey: String,
@@ -21,8 +21,6 @@ interface RaspApi {
         @Query("offset") offset: Int,
         @Query("limit") limit: Int = 100,
         @Query("transfers") transfers: Boolean = false,
-        @Query("format") format: String = "json",
-        @Query("lang") lang: String = "ru_RU",
     ): SearchResponse
 
     companion object {
@@ -30,42 +28,34 @@ interface RaspApi {
     }
 }
 
-// Ниже — только те поля ответа, которые нужны приложению (остальные игнорируются)
+// Только нужные приложению поля ответа, остальные игнорируются
 
 @Serializable
 data class SearchResponse(
     val pagination: Pagination,
-    val segments: List<Segment> = emptyList(),
+    val segments: List<Segment>,
 )
 
 @Serializable
-data class Pagination(
-    val total: Int,
-    val limit: Int,
-    val offset: Int,
-)
+data class Pagination(val total: Int)
 
 @Serializable
 data class Segment(
-    val from: StationDto? = null,
-    val to: StationDto? = null,
-    val departure: String? = null,
-    val arrival: String? = null,
-    @SerialName("start_date") val startDate: String? = null,
-    @SerialName("has_transfers") val hasTransfers: Boolean = false,
-    val thread: ThreadDto? = null,
+    val from: StationCode,
+    val to: StationCode,
+    val departure: String,
+    val arrival: String,
+    @SerialName("start_date") val startDate: String,
+    val thread: Thread,
 )
 
 @Serializable
-data class StationDto(
-    val code: String,
-    val title: String = "",
-)
+data class StationCode(val code: String)
 
 @Serializable
-data class ThreadDto(
+data class Thread(
     val uid: String,
     val number: String = "",
     val title: String = "",
-    @SerialName("transport_type") val transportType: String = "",
+    @SerialName("transport_type") val transportType: String,
 )

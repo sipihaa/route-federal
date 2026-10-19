@@ -171,7 +171,7 @@ private fun SelectionPage(
             onClick = onFindRouteClick,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(if (state.isSearching) "Поиск…" else "Найти маршрут")
+            Text("Найти маршрут")
         }
     }
 }
