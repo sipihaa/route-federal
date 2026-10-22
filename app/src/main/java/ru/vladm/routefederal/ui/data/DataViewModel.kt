@@ -1,23 +1,22 @@
 package ru.vladm.routefederal.ui.data
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import ru.vladm.routefederal.RouteFederalApp
 import ru.vladm.routefederal.data.ScheduleRepository
 import ru.vladm.routefederal.data.SettingsRepository
 import ru.vladm.routefederal.ui.common.dateFormatter
 import java.time.LocalDate
+import javax.inject.Inject
 
-class DataViewModel(
+@HiltViewModel
+class DataViewModel @Inject constructor(
     private val scheduleRepository: ScheduleRepository,
     private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
@@ -79,14 +78,5 @@ class DataViewModel(
 
     fun onMessageShown() {
         _uiState.update { it.copy(message = null) }
-    }
-
-    companion object {
-        val Factory = viewModelFactory {
-            initializer {
-                val container = (this[APPLICATION_KEY] as RouteFederalApp).container
-                DataViewModel(container.scheduleRepository, container.settingsRepository)
-            }
-        }
     }
 }

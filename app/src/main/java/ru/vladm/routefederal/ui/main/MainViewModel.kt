@@ -1,10 +1,8 @@
 package ru.vladm.routefederal.ui.main
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,7 +10,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import ru.vladm.routefederal.RouteFederalApp
 import ru.vladm.routefederal.data.City
 import ru.vladm.routefederal.data.CityRepository
 import ru.vladm.routefederal.data.Route
@@ -21,12 +18,16 @@ import ru.vladm.routefederal.data.StationRepository
 import ru.vladm.routefederal.search.RouteFinder
 import ru.vladm.routefederal.ui.common.dateFormatter
 import java.time.LocalDate
+import javax.inject.Inject
 
-class MainViewModel(
+// @HiltViewModel + @Inject constructor: Hilt сам создаёт ViewModel и передаёт в конструктор
+// репозитории и RouteFinder (из AppModule или по их @Inject-конструкторам)
+@HiltViewModel
+class MainViewModel @Inject constructor(
     private val scheduleRepository: ScheduleRepository,
-    private val cityRepository: CityRepository = CityRepository(),
-    private val stationRepository: StationRepository = StationRepository(),
-    private val routeFinder: RouteFinder = RouteFinder(),
+    private val cityRepository: CityRepository,
+    private val stationRepository: StationRepository,
+    private val routeFinder: RouteFinder,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState(
@@ -120,19 +121,5 @@ class MainViewModel(
 
     fun onErrorShown() {
         _uiState.update { it.copy(errorMessage = null) }
-    }
-
-    companion object {
-        // ViewModel с параметрами создаётся через фабрику: зависимости берутся из AppContainer
-        val Factory = viewModelFactory {
-            initializer {
-                val container = (this[APPLICATION_KEY] as RouteFederalApp).container
-                MainViewModel(
-                    scheduleRepository = container.scheduleRepository,
-                    cityRepository = container.cityRepository,
-                    stationRepository = container.stationRepository,
-                )
-            }
-        }
     }
 }

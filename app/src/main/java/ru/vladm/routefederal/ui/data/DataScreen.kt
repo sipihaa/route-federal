@@ -29,13 +29,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import ru.vladm.routefederal.ui.common.DateField
 import ru.vladm.routefederal.ui.common.shortDateFormatter
 import java.time.LocalDate
 
 @Composable
-fun DataRoute(viewModel: DataViewModel = viewModel(factory = DataViewModel.Factory)) {
+fun DataRoute(viewModel: DataViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsState()
 
     DataScreen(

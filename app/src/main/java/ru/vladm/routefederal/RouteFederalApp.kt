@@ -1,8 +1,9 @@
 package ru.vladm.routefederal
 
 import android.app.Application
+import dagger.hilt.android.HiltAndroidApp
 
-// Создаётся системой один раз при запуске приложения (указан в AndroidManifest.xml)
-class RouteFederalApp : Application() {
-    val container by lazy { AppContainer(this) }
-}
+// Класс приложения (указан в AndroidManifest.xml). @HiltAndroidApp запускает Hilt:
+// по этой аннотации Hilt генерирует код, который создаёт и раздаёт зависимости.
+@HiltAndroidApp
+class RouteFederalApp : Application()

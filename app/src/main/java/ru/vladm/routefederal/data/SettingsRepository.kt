@@ -6,9 +6,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
 
 // Настройки приложения в DataStore. Сейчас это только API-ключ.
-class SettingsRepository(private val dataStore: DataStore<Preferences>) {
+// @Inject constructor: Hilt сам создаст этот класс, передав DataStore из AppModule
+class SettingsRepository @Inject constructor(private val dataStore: DataStore<Preferences>) {
 
     val apiKey: Flow<String?> = dataStore.data.map { it[API_KEY] }
 

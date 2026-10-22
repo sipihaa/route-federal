@@ -6,13 +6,14 @@ import ru.vladm.routefederal.data.Route
 import java.time.Duration
 import java.time.LocalDate
 import java.util.PriorityQueue
+import javax.inject.Inject
 
 // Офлайн-поиск маршрутов по загруженным участкам. Чистый Kotlin, без Android.
 //
 // Поиск «лучший-первый» (вариант алгоритма Дейкстры для расписаний): из очереди с приоритетом
 // всегда берётся частичный путь с наименьшим временем в пути. Время в пути при продлении
 // пути только растёт, поэтому первые найденные пути до цели — самые быстрые.
-class RouteFinder {
+class RouteFinder @Inject constructor() {
 
     private class Path(val rides: List<Ride>) {
         val last: Ride get() = rides.last()

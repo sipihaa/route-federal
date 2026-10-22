@@ -37,7 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import ru.vladm.routefederal.data.City
 import ru.vladm.routefederal.data.Leg
 import ru.vladm.routefederal.data.Route
@@ -50,7 +50,7 @@ import java.time.OffsetDateTime
 
 // Связывает экран с ViewModel: берёт состояние и передаёт события
 @Composable
-fun MainRoute(viewModel: MainViewModel = viewModel(factory = MainViewModel.Factory)) {
+fun MainRoute(viewModel: MainViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsState()
 
     MainScreen(
