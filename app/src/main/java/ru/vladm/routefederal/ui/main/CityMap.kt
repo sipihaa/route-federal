@@ -83,10 +83,10 @@ fun CityMap(
             }
             for (city in cities) {
                 val selected = city == departureCity || city == arrivalCity
-                objects.addCircle(Circle(city.point(), if (selected) 9000f else 5000f)).apply {
-                    setFillColor(if (selected) SELECTED_COLOR else CITY_COLOR)
-                    setStrokeColor(Color.WHITE)
-                    setStrokeWidth(1.5f)
+                objects.addCircle(Circle(city.point(), if (selected) 15000f else 10000f)).apply {
+                    fillColor = if (selected) SELECTED_COLOR else CITY_COLOR
+                    strokeColor = Color.WHITE
+                    strokeWidth = 1.5f
                 }
             }
         },
@@ -98,7 +98,7 @@ private fun City.point() = Point(latitude, longitude)
 
 // Прямоугольник, в который помещаются все города, с небольшим запасом по краям
 private fun boundsOf(cities: List<City>): BoundingBox {
-    val margin = 0.3
+    val margin = 1
     return BoundingBox(
         Point(cities.minOf { it.latitude } - margin, cities.minOf { it.longitude } - margin),
         Point(cities.maxOf { it.latitude } + margin, cities.maxOf { it.longitude } + margin),

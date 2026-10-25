@@ -55,7 +55,7 @@ class RouteFinder @Inject constructor() {
                 val sameTrip = next.serviceKey == path.last.serviceKey
                 val wait = Duration.between(path.last.arrival, next.departure)
                 if (sameTrip && wait.isNegative) continue
-                if (!sameTrip && (wait < MIN_TRANSFER || wait > MAX_TRANSFER)) continue
+                if (!sameTrip && (wait !in MIN_TRANSFER..MAX_TRANSFER)) continue
                 queue.add(Path(path.rides + next))
             }
         }

@@ -349,6 +349,6 @@ private fun dayShift(route: Route): String {
 
 private fun formatDuration(duration: Duration): String {
     val hours = duration.toHours()
-    val minutes = duration.toMinutesPart()
+    val minutes = duration.toMinutes() % 60
     return if (hours > 0) "$hours ч $minutes мин" else "$minutes мин"
 }

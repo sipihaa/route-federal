@@ -44,7 +44,7 @@ class DataViewModel @Inject constructor(
                     _uiState.update { it.copy(progress = done.toFloat() / total) }
                 }
                 "Расписание на ${date.format(dateFormatter)} загружено"
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 "Не удалось загрузить расписание. Проверьте ключ и подключение к интернету"
             }
             _uiState.update { it.copy(isLoading = false, message = message) }
