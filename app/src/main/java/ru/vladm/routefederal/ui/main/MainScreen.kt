@@ -1,7 +1,6 @@
 package ru.vladm.routefederal.ui.main
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -94,10 +93,14 @@ fun MainScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            MapPlaceholder(
+            CityMap(
+                cities = state.cities,
+                departureCity = state.departureCity,
+                arrivalCity = state.arrivalCity,
+                routeCities = routeCities(state),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .weight(1f),
             )
             Box(
                 modifier = Modifier
@@ -131,14 +134,13 @@ fun MainScreen(
     }
 }
 
-@Composable
-private fun MapPlaceholder(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text("Здесь будет карта")
-    }
+// Города выбранного маршрута для карты: начало первого проезда и конец каждого проезда.
+// Маршрут рисуется только на странице результатов.
+private fun routeCities(state: MainUiState): List<City> {
+    val route = state.selectedRoute
+    if (state.currentPage != PAGE_ROUTES || route == null) return emptyList()
+    val stationIds = listOf(route.legs.first().fromStationId) + route.legs.map { it.toStationId }
+    return stationIds.mapNotNull { state.stationCities[it] }
 }
 
 @Composable

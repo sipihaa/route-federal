@@ -3,8 +3,6 @@ package ru.vladm.routefederal.ui.data
 import java.time.LocalDate
 
 data class DataUiState(
-    val savedApiKey: String? = null,
-    val enteredApiKey: String = "",
     val selectedDate: LocalDate = LocalDate.now(),
     val loadedDates: List<LocalDate> = emptyList(),
     val isLoading: Boolean = false,

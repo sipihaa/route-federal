@@ -18,6 +18,7 @@ import java.time.OffsetDateTime
 class ScheduleRepository(
     private val dir: File,
     private val api: RaspApi,
+    private val apiKey: String,
     private val json: Json,
     stations: List<Station>,
 ) {
@@ -28,7 +29,7 @@ class ScheduleRepository(
 
     // Скачивает участки за дату по всем связям (в обе стороны) и сохраняет в файл.
     // onProgress(сделано, всего) вызывается после каждого направления.
-    suspend fun download(date: LocalDate, apiKey: String, onProgress: (Int, Int) -> Unit) {
+    suspend fun download(date: LocalDate, onProgress: (Int, Int) -> Unit) {
         val directions = Links.all.flatMap { listOf(it, Link(it.to, it.from, it.transportType)) }
         val rides = mutableListOf<Ride>()
 

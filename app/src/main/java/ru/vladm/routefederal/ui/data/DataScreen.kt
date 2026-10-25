@@ -9,13 +9,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SuggestionChip
@@ -27,7 +24,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import ru.vladm.routefederal.ui.common.DateField
@@ -40,8 +36,6 @@ fun DataRoute(viewModel: DataViewModel = hiltViewModel()) {
 
     DataScreen(
         state = state,
-        onApiKeyChanged = viewModel::onApiKeyChanged,
-        onSaveApiKeyClick = viewModel::onSaveApiKeyClick,
         onDateSelected = viewModel::onDateSelected,
         onDownloadClick = viewModel::onDownloadClick,
         onMessageShown = viewModel::onMessageShown,
@@ -51,8 +45,6 @@ fun DataRoute(viewModel: DataViewModel = hiltViewModel()) {
 @Composable
 fun DataScreen(
     state: DataUiState,
-    onApiKeyChanged: (String) -> Unit,
-    onSaveApiKeyClick: () -> Unit,
     onDateSelected: (LocalDate) -> Unit,
     onDownloadClick: () -> Unit,
     onMessageShown: () -> Unit,
@@ -73,26 +65,6 @@ fun DataScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("API-ключ", style = MaterialTheme.typography.titleMedium)
-            OutlinedTextField(
-                value = state.enteredApiKey,
-                onValueChange = onApiKeyChanged,
-                label = { Text("Ключ API Яндекс Расписаний") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Text(
-                text = if (state.savedApiKey.isNullOrBlank()) "Ключ не сохранён" else "Ключ сохранён",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            OutlinedButton(
-                onClick = onSaveApiKeyClick,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Сохранить ключ")
-            }
-
             Text("Расписание", style = MaterialTheme.typography.titleMedium)
             Text(
                 text = "Для поиска на дату нужны расписания на эту дату и на следующий день.",

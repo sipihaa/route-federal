@@ -33,6 +33,9 @@ class MainViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(MainUiState(
         cities = cityRepository.cities,
         stationNames = stationRepository.stations.associate { it.id to it.name },
+        stationCities = stationRepository.stations.associate { station ->
+            station.id to cityRepository.cities.first { it.id == station.cityId }
+        },
     ))
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 

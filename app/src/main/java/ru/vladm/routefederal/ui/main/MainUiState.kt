@@ -19,4 +19,6 @@ data class MainUiState(
     val errorMessage: String? = null,
     // Названия станций по id — для показа деталей маршрута
     val stationNames: Map<String, String> = emptyMap(),
+    // Город каждой станции по id — чтобы нарисовать маршрут на карте
+    val stationCities: Map<String, City> = emptyMap(),
 )
