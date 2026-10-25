@@ -51,7 +51,14 @@ fun CityMap(
             }
         }
         lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer) }
+        onDispose {
+            lifecycle.removeObserver(observer)
+            // Карта уходит с экрана (например, переход на вкладку «Данные») — останавливаем её
+            if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                mapView.onStop()
+                MapKitFactory.getInstance().onStop()
+            }
+        }
     }
 
     AndroidView(

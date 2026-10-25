@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ru.vladm.routefederal.data.City
-import ru.vladm.routefederal.data.CityRepository
 import ru.vladm.routefederal.data.Route
 import ru.vladm.routefederal.data.ScheduleRepository
 import ru.vladm.routefederal.data.StationRepository
@@ -25,16 +24,15 @@ import javax.inject.Inject
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val scheduleRepository: ScheduleRepository,
-    private val cityRepository: CityRepository,
     private val stationRepository: StationRepository,
     private val routeFinder: RouteFinder,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState(
-        cities = cityRepository.cities,
+        cities = stationRepository.cities,
         stationNames = stationRepository.stations.associate { it.id to it.name },
         stationCities = stationRepository.stations.associate { station ->
-            station.id to cityRepository.cities.first { it.id == station.cityId }
+            station.id to stationRepository.cities.first { it.id == station.cityId }
         },
     ))
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()

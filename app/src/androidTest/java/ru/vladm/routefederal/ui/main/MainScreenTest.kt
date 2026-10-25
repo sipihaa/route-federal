@@ -11,7 +11,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import ru.vladm.routefederal.data.City
-import ru.vladm.routefederal.data.CityRepository
+import ru.vladm.routefederal.data.StationRepository
 import ru.vladm.routefederal.ui.theme.RouteFederalTheme
 import java.time.LocalDate
 
@@ -26,7 +26,7 @@ class MainScreenTest {
     private val petushki = City("c10669", "Петушки", 55.9296, 39.4503)
 
     private val selectionState = MainUiState(
-        cities = CityRepository().cities,
+        cities = StationRepository().cities,
         departureCity = moscow,
         arrivalCity = petushki,
         date = LocalDate.of(2026, 10, 25),

@@ -11,7 +11,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import ru.vladm.routefederal.BuildConfig
-import ru.vladm.routefederal.data.CityRepository
 import ru.vladm.routefederal.data.ScheduleRepository
 import ru.vladm.routefederal.data.StationRepository
 import ru.vladm.routefederal.data.api.RaspApi
@@ -36,10 +35,6 @@ object AppModule {
         .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
         .build()
         .create(RaspApi::class.java)
-
-    @Provides
-    @Singleton
-    fun provideCityRepository(): CityRepository = CityRepository()
 
     @Provides
     @Singleton
