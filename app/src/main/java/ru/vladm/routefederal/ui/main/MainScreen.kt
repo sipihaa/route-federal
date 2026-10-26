@@ -47,7 +47,6 @@ import java.time.Duration
 import java.time.LocalDate
 import java.time.OffsetDateTime
 
-// Связывает экран с ViewModel: берёт состояние и передаёт события
 @Composable
 fun MainRoute(viewModel: MainViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsState()
@@ -65,7 +64,6 @@ fun MainRoute(viewModel: MainViewModel = hiltViewModel()) {
     )
 }
 
-// Сам экран ничего не хранит: всё получает параметрами и сообщает о действиях колбэками
 @Composable
 fun MainScreen(
     state: MainUiState,
@@ -80,15 +78,12 @@ fun MainScreen(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Показываем ошибку, когда она появилась в состоянии. Если ошибка сменилась
-    // или стала null раньше, эффект перезапускается и текущий Snackbar закрывается.
     LaunchedEffect(state.errorMessage) {
         val message = state.errorMessage ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(message)
         onErrorShown()
     }
 
-    // Системная кнопка «назад» на странице маршрутов возвращает к выбору
     BackHandler(enabled = state.currentPage == PAGE_ROUTES) { onBackClick() }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -134,8 +129,6 @@ fun MainScreen(
     }
 }
 
-// Города выбранного маршрута для карты: начало первого проезда и конец каждого проезда.
-// Маршрут рисуется только на странице результатов.
 private fun routeCities(state: MainUiState): List<City> {
     val route = state.selectedRoute
     if (state.currentPage != PAGE_ROUTES || route == null) return emptyList()
@@ -186,7 +179,6 @@ private fun CityDropdown(
     selected: City?,
     onSelected: (City) -> Unit,
 ) {
-    // Открыт ли список — чисто визуальная деталь, ViewModel о ней знать не нужно
     var expanded by remember { mutableStateOf(false) }
 
     ExposedDropdownMenuBox(
@@ -246,7 +238,6 @@ private fun RoutesPage(
                 )
             }
         }
-        // Обязательное условие API: указать источник данных
         Text(
             text = "Данные: Яндекс Расписания",
             style = MaterialTheme.typography.bodySmall,
@@ -337,11 +328,9 @@ private fun transportName(type: String) = when (type) {
 
 private fun formatTime(time: OffsetDateTime): String = time.format(timeFormatter)
 
-// В деталях указываем и дату: поездка может переходить через полночь
 private fun formatDateTime(time: OffsetDateTime): String =
     "${time.format(timeFormatter)} (${time.format(shortDateFormatter)})"
 
-// «+1», если прибытие на следующие сутки после отправления
 private fun dayShift(route: Route): String {
     val days = route.arrival.toLocalDate().toEpochDay() - route.departure.toLocalDate().toEpochDay()
     return if (days > 0) " (+$days)" else ""

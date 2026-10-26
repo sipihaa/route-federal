@@ -22,7 +22,6 @@ class DataViewModel @Inject constructor(
     val uiState: StateFlow<DataUiState> = _uiState.asStateFlow()
 
     init {
-        // Загруженные даты — из репозитория, общего с главным экраном
         viewModelScope.launch {
             scheduleRepository.loadedDates.collect { dates ->
                 _uiState.update { it.copy(loadedDates = dates) }

@@ -22,7 +22,6 @@ import androidx.navigation.compose.rememberNavController
 import ru.vladm.routefederal.ui.data.DataRoute
 import ru.vladm.routefederal.ui.main.MainRoute
 
-// Вкладки нижней панели: адрес экрана в навигации, подпись и иконка
 private enum class Tab(val route: String, val label: String, val icon: ImageVector) {
     MAIN("main", "Главная", Icons.Filled.Home),
     DATA("data", "Данные", Icons.Filled.Refresh),
@@ -43,8 +42,6 @@ fun AppNavigation() {
                         selected = currentRoute == tab.route,
                         onClick = {
                             navController.navigate(tab.route) {
-                                // Не копим экраны в стеке при переключении вкладок
-                                // и сохраняем состояние каждой вкладки
                                 popUpTo(navController.graph.findStartDestination().id) {
                                     saveState = true
                                 }

@@ -8,9 +8,6 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import java.time.OffsetDateTime
 
-// Участок: прямой проезд одной поездки рейса между двумя нашими станциями.
-// serviceKey = "uid|start_date" — поездка рейса в конкретный день;
-// по нему участки одной поездки склеиваются в один проезд без пересадки.
 @Serializable
 data class Ride(
     val fromStationId: String,
@@ -23,7 +20,6 @@ data class Ride(
     val transportType: String,
 )
 
-// В JSON время хранится строкой ISO 8601 с часовым поясом, как его отдаёт API
 object DateTimeSerializer : KSerializer<OffsetDateTime> {
     override val descriptor = PrimitiveSerialDescriptor("OffsetDateTime", PrimitiveKind.STRING)
     override fun serialize(encoder: Encoder, value: OffsetDateTime) = encoder.encodeString(value.toString())

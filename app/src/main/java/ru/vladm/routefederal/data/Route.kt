@@ -3,7 +3,6 @@ package ru.vladm.routefederal.data
 import java.time.Duration
 import java.time.OffsetDateTime
 
-// Найденный вариант поездки: последовательность проездов, между которыми пересадки
 data class Route(val legs: List<Leg>) {
     val departure: OffsetDateTime get() = legs.first().departure
     val arrival: OffsetDateTime get() = legs.last().arrival
@@ -11,7 +10,6 @@ data class Route(val legs: List<Leg>) {
     val transfers: Int get() = legs.size - 1
 }
 
-// Проезд на одном транспортном средстве (один или несколько подряд идущих участков одной поездки)
 data class Leg(
     val fromStationId: String,
     val toStationId: String,

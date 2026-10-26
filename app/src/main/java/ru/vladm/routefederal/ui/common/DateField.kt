@@ -23,7 +23,6 @@ val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
 val shortDateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM")
 val timeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
-// Кнопка с датой, по нажатию открывает календарь. Используется на обеих вкладках.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DateField(
@@ -43,7 +42,6 @@ fun DateField(
     }
 
     if (showDialog) {
-        // DatePicker работает с миллисекундами в UTC, поэтому переводим LocalDate туда и обратно
         val pickerState = rememberDatePickerState(
             initialSelectedDateMillis = date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
         )

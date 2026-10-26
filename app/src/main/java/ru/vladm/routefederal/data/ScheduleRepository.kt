@@ -11,8 +11,6 @@ import java.io.File
 import java.time.LocalDate
 import java.time.OffsetDateTime
 
-// Расписание: один JSON-файл со списком участков на каждую дату (папка dir внутри filesDir).
-// Вкладка «Данные» скачивает через него даты, главный экран читает участки для поиска.
 class ScheduleRepository(
     private val dir: File,
     private val api: RaspApi,
@@ -25,19 +23,15 @@ class ScheduleRepository(
     private val _loadedDates = MutableStateFlow(readLoadedDates())
     val loadedDates: StateFlow<List<LocalDate>> = _loadedDates.asStateFlow()
 
-    // Скачивает участки за дату по всем связям (в обе стороны) и сохраняет в файл.
-    // onProgress(сделано, всего) вызывается после каждого направления.
     suspend fun download(date: LocalDate, onProgress: (Int, Int) -> Unit) {
         val directions = Links.all.flatMap { listOf(it, Link(it.to, it.from, it.transportType)) }
         val rides = mutableListOf<Ride>()
 
         directions.forEachIndexed { index, link ->
-            // API отдаёт не больше 100 рейсов за запрос, остальные — следующими страницами
             var offset = 0
             do {
                 val page = api.search(apiKey, link.from, link.to, date.toString(), link.transportType, offset)
                 for (segment in page.segments) {
-                    // Для автобусов (пары городов) приходят и станции не из нашего набора
                     if (segment.from.code !in stationIds || segment.to.code !in stationIds) continue
                     rides.add(
                         Ride(
@@ -66,8 +60,6 @@ class ScheduleRepository(
 
     fun isLoaded(date: LocalDate): Boolean = date in _loadedDates.value
 
-    // Участки за несколько дат одним списком. Один участок может оказаться в файлах
-    // соседних дней (отправления после полуночи), поэтому повторы убираются.
     suspend fun loadRides(dates: List<LocalDate>): List<Ride> = withContext(Dispatchers.IO) {
         dates.flatMap { json.decodeFromString<List<Ride>>(fileFor(it).readText()) }.distinct()
     }

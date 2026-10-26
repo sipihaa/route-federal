@@ -103,7 +103,6 @@ fun DataScreen(
                 }
             }
 
-            // Обязательное условие API: указать источник данных
             Text(
                 text = "Данные: Яндекс Расписания",
                 style = MaterialTheme.typography.bodySmall,

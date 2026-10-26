@@ -1,7 +1,5 @@
 package ru.vladm.routefederal.data
 
-// Сеть прототипа: населённые пункты и их станции (заданы в коде).
-// В тестах вместо настоящих списков можно передать свои.
 class StationRepository(
     val cities: List<City> = listOf(
         City("c213", "Москва", 55.7558, 37.6173),

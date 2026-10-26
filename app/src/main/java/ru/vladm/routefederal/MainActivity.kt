@@ -8,7 +8,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import ru.vladm.routefederal.ui.navigation.AppNavigation
 import ru.vladm.routefederal.ui.theme.RouteFederalTheme
 
-// @AndroidEntryPoint разрешает Hilt создавать ViewModel для экранов этой Activity
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

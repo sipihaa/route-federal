@@ -19,8 +19,6 @@ import ru.vladm.routefederal.ui.common.dateFormatter
 import java.time.LocalDate
 import javax.inject.Inject
 
-// @HiltViewModel + @Inject constructor: Hilt сам создаёт ViewModel и передаёт в конструктор
-// репозитории и RouteFinder (из AppModule или по их @Inject-конструкторам)
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val scheduleRepository: ScheduleRepository,
@@ -78,7 +76,6 @@ class MainViewModel @Inject constructor(
             _uiState.update { it.copy(errorMessage = "Города отправления и прибытия не должны совпадать") }
             return
         }
-        // Для поиска на дату D нужны участки за D и D+1 (продолжения поездок после полуночи)
         val date = uiState.value.date
         val nextDate = date.plusDays(1)
         if (!scheduleRepository.isLoaded(date) || !scheduleRepository.isLoaded(nextDate)) {
@@ -91,7 +88,6 @@ class MainViewModel @Inject constructor(
         val toStationIds = stationIdsOf(uiState.value.arrivalCity!!)
         viewModelScope.launch {
             val rides = scheduleRepository.loadRides(listOf(date, nextDate))
-            // Поиск — вычисления, поэтому выполняется не в главном потоке
             val routes = withContext(Dispatchers.Default) {
                 routeFinder.find(rides, fromStationIds, toStationIds, date)
             }

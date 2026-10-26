@@ -20,21 +20,17 @@ import com.yandex.mapkit.map.LineStyle
 import com.yandex.mapkit.mapview.MapView
 import ru.vladm.routefederal.data.City
 
-// Карта Яндекса (MapKit): точки городов, выбранные города и линия выбранного маршрута.
-// Карта только показывает данные, всё получает параметрами.
 @Composable
 fun CityMap(
     cities: List<City>,
     departureCity: City?,
     arrivalCity: City?,
-    // Города маршрута по порядку: начало, пересадки, конец. Пустой список — маршрута нет.
     routeCities: List<City>,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val mapView = remember { MapView(context) }
 
-    // MapView — не Compose-компонент: ему нужно сообщать, когда экран виден и когда скрыт
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
@@ -53,7 +49,6 @@ fun CityMap(
         lifecycle.addObserver(observer)
         onDispose {
             lifecycle.removeObserver(observer)
-            // Карта уходит с экрана (например, переход на вкладку «Данные») — останавливаем её
             if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
                 mapView.onStop()
                 MapKitFactory.getInstance().onStop()
@@ -63,14 +58,12 @@ fun CityMap(
 
     AndroidView(
         factory = {
-            // Камера показывает весь коридор; ждём, пока карта получит размер на экране
             mapView.post {
                 val map = mapView.mapWindow.map
                 map.move(map.cameraPosition(Geometry.fromBoundingBox(boundsOf(cities))))
             }
             mapView
         },
-        // update вызывается при каждом изменении параметров: рисуем всё заново
         update = { view ->
             val objects = view.mapWindow.map.mapObjects
             objects.clear()
@@ -96,7 +89,6 @@ fun CityMap(
 
 private fun City.point() = Point(latitude, longitude)
 
-// Прямоугольник, в который помещаются все города, с небольшим запасом по краям
 private fun boundsOf(cities: List<City>): BoundingBox {
     val margin = 1
     return BoundingBox(

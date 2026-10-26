@@ -17,9 +17,6 @@ import ru.vladm.routefederal.data.api.RaspApi
 import java.io.File
 import javax.inject.Singleton
 
-// Модуль Hilt: «рецепты» объектов, которые Hilt не может создать сам
-// (классы библиотек, объекты, которым нужен Context или ключ API, классы с параметрами по умолчанию).
-// @Singleton — объект создаётся один раз на всё приложение и раздаётся всем, кто его попросит.
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
@@ -40,7 +37,6 @@ object AppModule {
     @Singleton
     fun provideStationRepository(): StationRepository = StationRepository()
 
-    // Один репозиторий расписания на обе вкладки: «Данные» скачивает, «Главная» читает
     @Provides
     @Singleton
     fun provideScheduleRepository(

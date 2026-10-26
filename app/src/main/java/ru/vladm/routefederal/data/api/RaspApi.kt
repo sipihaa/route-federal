@@ -6,11 +6,8 @@ import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Query
 
-// API Яндекс Расписаний: https://yandex.ru/dev/rasp/doc/ru/
 interface RaspApi {
 
-    // Прямые рейсы между двумя точками (transfers=false).
-    // Маршруты с пересадками приложение строит само, офлайн.
     @GET("v3.0/search/")
     suspend fun search(
         @Header("Authorization") apiKey: String,
@@ -28,7 +25,6 @@ interface RaspApi {
     }
 }
 
-// Только нужные приложению поля ответа, остальные игнорируются
 
 @Serializable
 data class SearchResponse(

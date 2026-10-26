@@ -15,8 +15,6 @@ import ru.vladm.routefederal.data.StationRepository
 import ru.vladm.routefederal.ui.theme.RouteFederalTheme
 import java.time.LocalDate
 
-// UI-тест главного экрана. MainScreen ничего не хранит сам: тест передаёт ему состояние
-// и колбэки, а затем проверяет, что нарисовано и какие колбэки вызваны.
 class MainScreenTest {
 
     @get:Rule
@@ -89,7 +87,6 @@ class MainScreenTest {
 
     @Test
     fun errorMessageIsShownReplacedAndHidden() {
-        // Состояние хранится в тесте, чтобы менять его по ходу проверки
         var state by mutableStateOf(selectionState)
         showScreen { state }
 
